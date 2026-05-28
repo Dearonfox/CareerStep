@@ -22,11 +22,13 @@ flowchart LR
 ## 3. 필요한 파일 구조
 
 ```text
-CarrerStep/
-  src/                         # React 구직자/관리자 웹 MVP
-  services/
-    main-backend/              # FastAPI 메인 백엔드
-    ai-backend/                # FastAPI AI 서비스 백엔드
+CareerStep/
+  frontend/                    # React 구직자/관리자 웹 MVP
+    src/
+    package.json
+  backend/
+    main-api/                  # FastAPI 메인 백엔드
+    ai-api/                    # FastAPI AI 서비스 백엔드
   docker-compose.yml
   .env.example
 ```
@@ -109,11 +111,11 @@ AI 서비스 SQLite는 `ai_logs` 테이블에 endpoint, request_json, response_j
 - `useProfileStore`: 취업 프로필
 - `useJobStore`: 채용공고와 관심공고
 - `useRecommendStore`: AI 추천 결과와 부족 역량
-- `src/api/client.ts`: Axios 인스턴스와 Bearer Token 인터셉터
+- `frontend/src/api/client.ts`: Axios 인스턴스와 Bearer Token 인터셉터
 
 ## 7. 메인 백엔드 코드
 
-메인 백엔드는 인증, 권한, MySQL CRUD, Redis Refresh Token 저장, AI 서비스 프록시를 담당한다. AI 호출은 `services/main-backend/app/services/ai_client.py`에서 `X-Internal-Key` 헤더를 붙여 내부 네트워크로만 요청한다.
+메인 백엔드는 인증, 권한, MySQL CRUD, Redis Refresh Token 저장, AI 서비스 프록시를 담당한다. AI 호출은 `backend/main-api/app/services/ai_client.py`에서 `X-Internal-Key` 헤더를 붙여 내부 네트워크로만 요청한다.
 
 ## 8. AI 서비스 코드
 
@@ -136,6 +138,8 @@ docker compose up --build
 npm install
 npm run dev
 ```
+
+프론트엔드 명령은 `frontend/` 폴더에서 실행한다.
 
 ## 11. 에러 처리 및 예외 케이스
 
