@@ -1,2 +1,27 @@
 # CareerStep
-IT 공고 및 대외활동 데이터를 기반으로 맞춤형 추천을 제공하는 취업 지원 플랫폼
+
+AI 기반 취업 지원 플랫폼 MVP입니다.
+
+## Structure
+
+```text
+frontend/       React 18 + Vite + TypeScript
+backend/
+  main-api/     FastAPI main backend
+  ai-api/       FastAPI AI service backend
+```
+
+## Run
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+Frontend only:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
