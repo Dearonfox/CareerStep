@@ -5,7 +5,8 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - main-backend
+      main-backend:
+        condition: service_healthy  # 백엔드 API가 응답 가능할 때 프론트엔드 시작
     env_file:
       - .env
 
@@ -17,9 +18,18 @@ services:
     env_file:
       - .env
     depends_on:
-      - mysql
-      - redis
-      - ai-backend
+      mysql:
+        condition: service_healthy  # DB 준비 완료 대기
+      redis:
+        condition: service_healthy  # 캐시 준비 완료 대기
+      ai-backend:
+        condition: service_started  # 필요 시 ai-backend도 healthy로 설정 가능
+    # (선택사항) 백엔드 자체도 헬스체크를 넣어두면 프론트엔드가 기다릴 수 있습니다.
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"] # 백엔드에 /health 경로가 있다고 가정
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ai-backend:
     build:
@@ -42,11 +52,22 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s  # 초기 DB 생성 및 테이블 초기화 시간을 벌어줌
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   mysql_data:
