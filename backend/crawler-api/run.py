@@ -2,7 +2,7 @@ import os
 import json
 import time
 from datetime import datetime
-from config import DUTY_MAP, PAGE_SIZE, CRAWL_DELAY, OUTPUT_FILE, DATA_DIR
+from config import DUTY_MAP, PAGE_SIZE, CRAWL_DELAY, OUTPUT_FILE, DATA_DIR, MONGODB_URI
 from crawler import fetch_category_jobs
 
 def run_pipeline():
@@ -48,9 +48,22 @@ def run_pipeline():
     try:
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             json.dump(unique_jobs, f, ensure_ascii=False, indent=2)
-        print(f"성공적으로 데이터를 저장했습니다: {OUTPUT_FILE}")
+        print(f"성공적으로 로컬 파일에 데이터를 저장했습니다: {OUTPUT_FILE}")
     except Exception as e:
         print(f"파일 저장 중 오류 발생: {e}")
+        
+    # MongoDB Atlas 적재 연동
+    if MONGODB_URI:
+        print("\n>>> MongoDB Atlas 클라우드 데이터 적재 시작...")
+        try:
+            from db import MongoDBClient
+            db_client = MongoDBClient()
+            db_client.upsert_jobs(unique_jobs)
+            db_client.close()
+        except Exception as e:
+            print(f"❌ MongoDB Atlas 적재 중 예외 발생: {e}")
+    else:
+        print("\n>>> MONGODB_URI 환경변수가 없어 클라우드 적재 단계를 건너뜁니다.")
         
     print("=" * 70)
 

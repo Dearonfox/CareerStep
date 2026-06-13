@@ -43,3 +43,7 @@ CRAWL_DELAY = 2.0 # 요청 간 지연 시간 (초)
 # 파일 저장 경로
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "raw_list.json")
+
+# MongoDB 설정
+MONGODB_URI = os.getenv("MONGODB_URI")
+
