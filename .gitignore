@@ -9,3 +9,4 @@ __pycache__
 .venv
 *.pyc
 backend/crawler-api/data/
+backend/crawler-api/samplefile/

@@ -3,7 +3,7 @@ import json
 import time
 from datetime import datetime
 from config import DUTY_MAP, PAGE_SIZE, CRAWL_DELAY, OUTPUT_FILE, DATA_DIR, MONGODB_URI
-from crawler import fetch_category_jobs
+from crawler import fetch_category_jobs, fetch_job_detail
 
 def run_pipeline():
     print("=" * 70)
@@ -52,16 +52,43 @@ def run_pipeline():
     except Exception as e:
         print(f"파일 저장 중 오류 발생: {e}")
         
-    # MongoDB Atlas 적재 연동
+    # MongoDB Atlas 적재 및 상세 수집 연동
     if MONGODB_URI:
         print("\n>>> MongoDB Atlas 클라우드 데이터 적재 시작...")
         try:
             from db import MongoDBClient
             db_client = MongoDBClient()
             db_client.upsert_jobs(unique_jobs)
+            
+            # --- 2단계: 상세 페이지 마크다운 수집 & 업데이트 ---
+            print("\n>>> 2단계: 채용 상세 요강 마크다운 변환 및 업데이트 시작...")
+            total_jobs = len(unique_jobs)
+            for s_idx, job in enumerate(unique_jobs, 1):
+                job_id = job["job_id"]
+                company = job["company_name"]
+                
+                print(f"  [{s_idx}/{total_jobs}] '{company}' (ID: {job_id}) 상세 요강 수집 중...")
+                
+                # 상세 페이지 수집 및 마크다운 정제 (이미지 및 에러 케이스 자동 대응)
+                detail_data = fetch_job_detail(job_id)
+                
+                if detail_data.get("error_message"):
+                    print(f"    [경고] 상세 수집 실패: {detail_data['error_message']}")
+                elif detail_data.get("is_image_job"):
+                    print(f"    [이미지] 이미지 전용 공고 감지 (이미지 수: {len(detail_data['image_urls'])}개)")
+                else:
+                    print(f"    [텍스트] 마크다운 변환 성공 (텍스트 크기: {len(detail_data['detail_markdown']):,} 자)")
+                
+                # MongoDB에 개별 도큐먼트 업데이트
+                db_client.update_job_detail(job_id, detail_data)
+                
+                # 봇 탐지 방지 지연
+                if s_idx < total_jobs:
+                    time.sleep(CRAWL_DELAY)
+                    
             db_client.close()
         except Exception as e:
-            print(f"❌ MongoDB Atlas 적재 중 예외 발생: {e}")
+            print(f"[오류] MongoDB Atlas 적재 중 예외 발생: {e}")
     else:
         print("\n>>> MONGODB_URI 환경변수가 없어 클라우드 적재 단계를 건너뜁니다.")
         

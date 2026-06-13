@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 import urllib.parse
 from datetime import datetime
+import html2text
 
 BASE_URL = "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/"
 HEADERS = {
@@ -127,3 +128,81 @@ def fetch_category_jobs(category_name: str, duty_code: str, target_count: int = 
     except Exception as e:
         print(f"  [예외 발생] {e}")
         return []
+
+def fetch_job_detail(job_id: str) -> dict:
+    """
+    잡코리아 상세 요강 iframe API를 호출하여, 본문을 구조적 마크다운으로 정제하고
+    이미지 공고 여부 및 에러 상황을 판별하여 딕셔너리로 반환.
+    """
+    url = "https://www.jobkorea.co.kr/Recruit/GI_Read_Comt_Ifrm"
+    params = {
+        "rPageCode": "SL",
+        "logpath": "21",
+        "sn": "6",
+        "sc": "612",
+        "Gno": job_id,
+        "isHiringCenter": "false",
+        "hideMapView": "false"
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+        "Referer": f"https://www.jobkorea.co.kr/Recruit/GI_Read/{job_id}",
+        "Connection": "keep-alive"
+    }
+
+    result = {
+        "detail_markdown": "",
+        "is_image_job": False,
+        "image_urls": [],
+        "error_message": None
+    }
+
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=15)
+        if response.status_code != 200:
+            result["error_message"] = f"HTTP status code {response.status_code}"
+            return result
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # 상세 요강 영역 획득
+        content_div = soup.select_one("#detail-content") or soup.select_one(".html-viewer-content-reset") or soup.select_one("body")
+        if not content_div:
+            result["error_message"] = "Detail content container not found"
+            return result
+
+        # 1. 이미지 및 이미지 전용 공고 판별
+        img_tags = content_div.find_all("img")
+        image_urls = []
+        for img in img_tags:
+            src = img.get("src") or img.get("data-src")
+            if src:
+                if not src.startswith("http"):
+                    src = clean_url(src)
+                if src not in image_urls:
+                    image_urls.append(src)
+        result["image_urls"] = image_urls
+
+        # 본문 텍스트 길이 측정
+        plain_text = content_div.get_text(strip=True)
+        # 본문 텍스트가 극도로 적고 (예: 150자 미만), 이미지가 존재하는 경우 이미지 공고로 정의
+        if len(plain_text) < 150 and len(image_urls) > 0:
+            result["is_image_job"] = True
+            result["detail_markdown"] = "### 이미지 기반 공고\n" + "\n".join([f"![공고이미지]({url})" for url in image_urls])
+            return result
+
+        # 2. 정상 텍스트/테이블 공고 -> 구조 보존 마크다운 변환
+        h = html2text.HTML2Text()
+        h.bypass_tables = False
+        h.ignore_links = True
+        h.ignore_images = True  # 텍스트 변환 시에는 이미지는 제외
+        h.body_width = 0
+        h.ul_item_mark = "*"
+
+        markdown_text = h.handle(str(content_div))
+        result["detail_markdown"] = markdown_text.strip()
+
+    except Exception as e:
+        result["error_message"] = str(e)
+
+    return result

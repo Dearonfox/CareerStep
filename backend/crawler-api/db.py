@@ -2,6 +2,7 @@ from pymongo import MongoClient
 from pymongo import ReplaceOne
 from pymongo.server_api import ServerApi
 from config import MONGODB_URI
+from datetime import datetime
 
 class MongoDBClient:
     def __init__(self):
@@ -11,7 +12,7 @@ class MongoDBClient:
         self.collection = None
 
         if not self.uri:
-            print("❌ MongoDB Atlas URI가 설정되지 않았습니다. .env 파일을 확인해 주세요.")
+            print("[오류] MongoDB Atlas URI가 설정되지 않았습니다. .env 파일을 확인해 주세요.")
             return
 
         try:
@@ -22,9 +23,9 @@ class MongoDBClient:
             
             # 연결 상태 확인 (Ping)
             self.client.admin.command('ping')
-            print("⚡ MongoDB Atlas 클라우드 연결에 성공했습니다!")
+            print("[연결] MongoDB Atlas 클라우드 연결에 성공했습니다!")
         except Exception as e:
-            print(f"❌ MongoDB Atlas 연결 실패: {e}")
+            print(f"[오류] MongoDB Atlas 연결 실패: {e}")
 
     def upsert_jobs(self, jobs: list[dict]) -> int:
         """
@@ -32,11 +33,11 @@ class MongoDBClient:
         중복 없이 Upsert(없으면 삽입, 있으면 대체) 처리
         """
         if self.collection is None:
-            print("❌ 데이터베이스가 연결되어 있지 않아 적재를 취소합니다.")
+            print("[오류] 데이터베이스가 연결되어 있지 않아 적재를 취소합니다.")
             return 0
 
         if not jobs:
-            print("ℹ️ 적재할 공고 데이터가 없습니다.")
+            print("[정보] 적재할 공고 데이터가 없습니다.")
             return 0
 
         operations = []
@@ -59,13 +60,48 @@ class MongoDBClient:
             result = self.collection.bulk_write(operations, ordered=False)
             # 신규 삽입 및 수정된 개수 합산 반환
             upserted_count = result.upserted_count + result.modified_count
-            print(f"✅ MongoDB Atlas 적재 완료: 신규/변경 {upserted_count}개 (매칭 {result.matched_count}개)")
+            print(f"[완료] MongoDB Atlas 적재 완료: 신규/변경 {upserted_count}개 (매칭 {result.matched_count}개)")
             return upserted_count
         except Exception as e:
-            print(f"❌ bulk_write 실행 중 예외 발생: {e}")
+            print(f"[오류] bulk_write 실행 중 예외 발생: {e}")
             return 0
+
+    def update_job_detail(self, job_id: str, detail_data: dict) -> bool:
+        """
+        특정 공고 ID의 도큐먼트에 마크다운 상세 요강과 이미지 판별 플래그를 추가/업데이트하고
+        status 값을 detailed (또는 에러 시 failed)로 갱신
+        """
+        if self.collection is None:
+            print("[오류] 데이터베이스 연결이 없습니다.")
+            return False
+
+        # 업데이트할 필드 맵 구성
+        update_fields = {
+            "detail_markdown": detail_data.get("detail_markdown", ""),
+            "is_image_job": detail_data.get("is_image_job", False),
+            "image_urls": detail_data.get("image_urls", []),
+            "detailed_at": datetime.now().isoformat()
+        }
+
+        # 에러 발생 케이스 대응
+        if detail_data.get("error_message"):
+            update_fields["status"] = "failed"
+            update_fields["error_message"] = detail_data["error_message"]
+        else:
+            update_fields["status"] = "detailed"
+            update_fields["error_message"] = None  # 기존 에러 초기화
+
+        try:
+            result = self.collection.update_one(
+                {"_id": job_id},
+                {"$set": update_fields}
+            )
+            return result.modified_count > 0 or result.matched_count > 0
+        except Exception as e:
+            print(f"[오류] MongoDB 상세 정보 업데이트 실패 (ID: {job_id}): {e}")
+            return False
 
     def close(self):
         if self.client:
             self.client.close()
-            print("🔌 MongoDB Atlas 연결 종료")
+            print("[종료] MongoDB Atlas 연결 종료")
