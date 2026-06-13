@@ -69,6 +69,14 @@ services:
       timeout: 3s
       retries: 5
 
+  crawler-api:
+    build:
+      context: ./backend/crawler-api
+    volumes:
+      - ./backend/crawler-api/data:/app/data
+    env_file:
+      - .env
+
 volumes:
   mysql_data:
   ai_logs:
