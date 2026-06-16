@@ -93,6 +93,22 @@ button {
   overflow-x: auto;
 }
 
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-user {
+  max-width: 120px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .topnav a,
 .topnav button {
   display: inline-flex;
@@ -708,6 +724,103 @@ h4 {
   grid-template-columns: 420px minmax(0, 1fr);
 }
 
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 28px;
+  align-items: start;
+}
+
+.auth-copy {
+  padding: 48px 0;
+}
+
+.auth-copy p:not(.eyebrow) {
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.auth-benefits {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+  max-width: 520px;
+}
+
+.auth-benefits span {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.auth-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.auth-field span {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #f8fafc;
+}
+
+.auth-field input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.auth-error {
+  margin: 2px 0 14px;
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-switch {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.auth-switch a {
+  color: var(--blue);
+  font-weight: 850;
+  text-decoration: none;
+}
+
 .tool-form label {
   margin-top: 18px;
 }
@@ -845,6 +958,7 @@ th {
   .hero-grid,
   .recommendation-layout,
   .split-tool-layout,
+  .auth-layout,
   .admin-layout {
     grid-template-columns: 1fr;
   }
@@ -901,7 +1015,8 @@ th {
   .profile-progress,
   .search-filter-bar,
   .job-card-header,
-  .result-header {
+  .result-header,
+  .auth-actions {
     align-items: stretch;
     flex-direction: column;
   }

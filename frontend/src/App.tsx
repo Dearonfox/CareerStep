@@ -5,20 +5,27 @@ import {
   Copy,
   FileText,
   LayoutDashboard,
+  LogIn,
+  LogOut,
   Sparkles,
+  UserPlus,
 } from 'lucide-react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import { logout as requestLogout } from './api/auth';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
 import { Button } from './components/Button';
 import { DashboardCard } from './components/DashboardCard';
 import { JobCard } from './components/JobCard';
 import { ProfileProgressCard } from './components/ProfileProgressCard';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { SearchFilterBar } from './components/SearchFilterBar';
 import { SkillTag } from './components/SkillTag';
 import { StatCard } from './components/StatCard';
 import { adminStats, dashboardSignals, stats } from './data/mockData';
+import { AuthPage } from './pages/AuthPage';
 import { useCareerStore } from './store/useCareerStore';
+import { useUserStore } from './store/useUserStore';
 const navItems = [
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '마이페이지' },
@@ -31,6 +38,21 @@ const navItems = [
 const filterSkills = ['전체', 'React', 'Spring Boot', 'LLM API', 'AWS'];
 
 function Header() {
+  const navigate = useNavigate();
+  const { user, refreshToken, isAuthenticated, clearAuth } = useUserStore();
+
+  async function handleLogout() {
+    if (refreshToken) {
+      try {
+        await requestLogout(refreshToken);
+      } catch {
+        // Client logout should still clear local auth state even if the server request fails.
+      }
+    }
+    clearAuth();
+    navigate('/');
+  }
+
   return (
     <header className="topbar">
       <NavLink className="brand" to="/">
@@ -44,6 +66,25 @@ function Header() {
           </NavLink>
         ))}
       </nav>
+      <div className="auth-actions">
+        {isAuthenticated ? (
+          <>
+            <span className="auth-user">{user?.name}</span>
+            <Button variant="secondary" icon={LogOut} onClick={handleLogout}>
+              로그아웃
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" icon={LogIn} onClick={() => navigate('/login')}>
+              로그인
+            </Button>
+            <Button variant="primary" icon={UserPlus} onClick={() => navigate('/signup')}>
+              회원가입
+            </Button>
+          </>
+        )}
+      </div>
     </header>
   );
 }
@@ -332,11 +373,41 @@ export default function App() {
       <Header />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/login" element={<AuthPage mode="login" />} />
+        <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/jobs" element={<JobsPage />} />
-        <Route path="/recommendations" element={<RecommendationsPage />} />
-        <Route path="/ai-tools" element={<AiToolsPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route
+          path="/recommendations"
+          element={
+            <ProtectedRoute>
+              <RecommendationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai-tools"
+          element={
+            <ProtectedRoute>
+              <AiToolsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );
