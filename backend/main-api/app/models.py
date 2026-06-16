@@ -30,10 +30,20 @@ class Profile(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
-    desired_role: Mapped[str] = mapped_column(String(100))
+
+    # 추천 엔진 호환용 단순 필드 (desired_role = target_roles[0])
+    desired_role: Mapped[str] = mapped_column(String(100), default="")
     skills: Mapped[str] = mapped_column(Text, default="[]")
     certificates: Mapped[str] = mapped_column(Text, default="[]")
     projects: Mapped[str] = mapped_column(Text, default="[]")
+
+    # 이력서 파싱 결과 상세 필드
+    target_roles: Mapped[str] = mapped_column(Text, default="[]")
+    career_level: Mapped[str] = mapped_column(String(20), default="")
+    skills_detail: Mapped[str] = mapped_column(Text, default="{}")
+    education: Mapped[str] = mapped_column(Text, default="[]")
+    experience: Mapped[str] = mapped_column(Text, default="[]")
+    projects_detail: Mapped[str] = mapped_column(Text, default="[]")
 
     user: Mapped[User] = relationship(back_populates="profile")
 

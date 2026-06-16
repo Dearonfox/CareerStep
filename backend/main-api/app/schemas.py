@@ -34,7 +34,7 @@ class TokenPair(BaseModel):
 
 
 class ProfileUpsert(BaseModel):
-    desired_role: str = Field(min_length=1, max_length=100)
+    desired_role: str = Field(default="", max_length=100)
     skills: list[str] = []
     certificates: list[str] = []
     projects: list[str] = []
@@ -43,10 +43,34 @@ class ProfileUpsert(BaseModel):
 class ProfileRead(ProfileUpsert):
     id: int
     user_id: int
+    target_roles: list[str] = []
+    career_level: str = ""
+    skills_detail: dict = {}
+    education: list[dict] = []
+    experience: list[dict] = []
+    projects_detail: list[dict] = []
 
-    @field_validator("skills", "certificates", "projects", mode="before")
+    @field_validator("skills", "certificates", "projects", "target_roles", mode="before")
     @classmethod
-    def parse_json_list(cls, value: object) -> list[str]:
+    def parse_json_list(cls, value: object) -> list:
+        if isinstance(value, str):
+            return json.loads(value)
+        if isinstance(value, list):
+            return value
+        return []
+
+    @field_validator("skills_detail", mode="before")
+    @classmethod
+    def parse_json_dict(cls, value: object) -> dict:
+        if isinstance(value, str):
+            return json.loads(value)
+        if isinstance(value, dict):
+            return value
+        return {}
+
+    @field_validator("education", "experience", "projects_detail", mode="before")
+    @classmethod
+    def parse_json_list_of_dict(cls, value: object) -> list:
         if isinstance(value, str):
             return json.loads(value)
         if isinstance(value, list):

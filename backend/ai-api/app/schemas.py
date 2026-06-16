@@ -45,6 +45,52 @@ class RecommendJobsResponse(BaseModel):
     policy_violation: bool = False
 
 
+class ResumeParseRequest(BaseModel):
+    resume_text: str
+
+
+class SkillSet(BaseModel):
+    languages: list[str] = []
+    frameworks: list[str] = []
+    databases: list[str] = []
+    cloud_devops: list[str] = []
+    tools: list[str] = []
+    others: list[str] = []
+
+
+class Education(BaseModel):
+    school: str = ""
+    major: str = ""
+    degree: str = ""
+    graduation_status: str = ""
+
+
+class Experience(BaseModel):
+    company: str = ""
+    position: str = ""
+    period: str = ""
+    description: str = ""
+
+
+class ProjectDetail(BaseModel):
+    name: str = ""
+    summary: str = ""
+    technologies: list[str] = []
+    period: str = ""
+    role: str = ""
+    outcomes: list[str] = []
+
+
+class ResumeParseResponse(BaseModel):
+    target_roles: list[str] = []
+    career_level: str = ""
+    skills: SkillSet = Field(default_factory=SkillSet)
+    certificates: list[str] = []
+    education: list[Education] = []
+    experience: list[Experience] = []
+    projects: list[ProjectDetail] = []
+
+
 class EssayDraftRequest(BaseModel):
     profile: ProfileInput
     job_title: str
