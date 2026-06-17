@@ -89,9 +89,17 @@ def run_pipeline():
             db_client.close()
         except Exception as e:
             print(f"[오류] MongoDB Atlas 적재 중 예외 발생: {e}")
+
+        # --- 3단계: MySQL 동기화 ---
+        print("\n>>> 3단계: MongoDB → MySQL 공고 동기화 시작...")
+        try:
+            from sync_to_mysql import run_sync
+            run_sync()
+        except Exception as e:
+            print(f"[오류] MySQL 동기화 중 예외 발생: {e}")
     else:
-        print("\n>>> MONGODB_URI 환경변수가 없어 클라우드 적재 단계를 건너뜁니다.")
-        
+        print("\n>>> MONGODB_URI 환경변수가 없어 클라우드 적재 및 MySQL 동기화 단계를 건너뜁니다.")
+
     print("=" * 70)
 
 if __name__ == "__main__":
