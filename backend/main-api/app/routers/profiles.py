@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.deps import get_current_user
 from app.models import Profile, User
-from app.schemas import ProfileRead, ProfileUpsert
+from app.schemas import PortfolioTextRequest, ProfileRead, ProfileUpsert, TranscriptTextRequest
 from app.services.ai_client import post_to_ai_service
 
 router = APIRouter()
@@ -21,6 +21,30 @@ def get_my_profile(
     db: Session = Depends(get_db),
 ) -> Profile | None:
     return db.scalar(select(Profile).where(Profile.user_id == current_user.id))
+
+
+@router.put("/me", response_model=ProfileRead)
+def upsert_my_profile(
+    payload: ProfileUpsert,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Profile:
+    profile = db.scalar(select(Profile).where(Profile.user_id == current_user.id))
+    values = {
+        "desired_role": payload.desired_role,
+        "skills": json.dumps(payload.skills, ensure_ascii=False),
+        "certificates": json.dumps(payload.certificates, ensure_ascii=False),
+        "projects": json.dumps(payload.projects, ensure_ascii=False),
+    }
+    if profile:
+        for key, value in values.items():
+            setattr(profile, key, value)
+    else:
+        profile = Profile(user_id=current_user.id, **values)
+        db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return profile
 
 
 @router.post("/me/resume", response_model=ProfileRead)
@@ -72,12 +96,62 @@ async def upload_resume(
         "projects_detail": json.dumps(projects_detail, ensure_ascii=False),
     }
 
-    profile = db.scalar(select(Profile).where(Profile.user_id == current_user.id))
+    return _upsert_profile(current_user.id, values, db)
+
+
+@router.post("/me/transcript", response_model=ProfileRead)
+async def upload_transcript(
+    payload: TranscriptTextRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Profile:
+    if not payload.transcript_text.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="성적표 텍스트가 비어있습니다.")
+
+    parsed = await post_to_ai_service("/api/v1/transcript/parse", {"transcript_text": payload.transcript_text})
+
+    values = {
+        "gpa": parsed.get("gpa", ""),
+        "gpa_scale": parsed.get("gpa_scale", ""),
+        "transcript_strong_subjects": json.dumps(parsed.get("strong_subjects", []), ensure_ascii=False),
+        "transcript_weak_subjects": json.dumps(parsed.get("weak_subjects", []), ensure_ascii=False),
+        "total_credits": parsed.get("total_credits", ""),
+        "completed_semesters": parsed.get("completed_semesters", ""),
+    }
+
+    return _upsert_profile(current_user.id, values, db)
+
+
+@router.post("/me/portfolio", response_model=ProfileRead)
+async def upload_portfolio(
+    payload: PortfolioTextRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Profile:
+    if not payload.portfolio_text.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="포트폴리오 텍스트가 비어있습니다.")
+
+    parsed = await post_to_ai_service("/api/v1/portfolio/parse", {"portfolio_text": payload.portfolio_text})
+
+    values = {
+        "portfolio_projects": json.dumps(parsed.get("projects", []), ensure_ascii=False),
+        "portfolio_total_count": parsed.get("total_project_count", 0),
+        "portfolio_solo_count": parsed.get("solo_project_count", 0),
+        "portfolio_team_count": parsed.get("team_project_count", 0),
+        "portfolio_deployed_count": parsed.get("deployed_project_count", 0),
+        "portfolio_total_months": parsed.get("total_duration_months", 0),
+    }
+
+    return _upsert_profile(current_user.id, values, db)
+
+
+def _upsert_profile(user_id: int, values: dict, db: Session) -> Profile:
+    profile = db.scalar(select(Profile).where(Profile.user_id == user_id))
     if profile:
         for key, value in values.items():
             setattr(profile, key, value)
     else:
-        profile = Profile(user_id=current_user.id, **values)
+        profile = Profile(user_id=user_id, **values)
         db.add(profile)
     db.commit()
     db.refresh(profile)
@@ -92,27 +166,3 @@ def _extract_text_from_pdf(contents: bytes) -> str:
             if page_text:
                 text_parts.append(page_text)
     return "\n".join(text_parts)
-
-
-@router.put("/me", response_model=ProfileRead)
-def upsert_my_profile(
-    payload: ProfileUpsert,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> Profile:
-    profile = db.scalar(select(Profile).where(Profile.user_id == current_user.id))
-    values = {
-        "desired_role": payload.desired_role,
-        "skills": json.dumps(payload.skills, ensure_ascii=False),
-        "certificates": json.dumps(payload.certificates, ensure_ascii=False),
-        "projects": json.dumps(payload.projects, ensure_ascii=False),
-    }
-    if profile:
-        for key, value in values.items():
-            setattr(profile, key, value)
-    else:
-        profile = Profile(user_id=current_user.id, **values)
-        db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    return profile

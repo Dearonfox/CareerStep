@@ -43,6 +43,8 @@ class ProfileUpsert(BaseModel):
 class ProfileRead(ProfileUpsert):
     id: int
     user_id: int
+
+    # 이력서 파싱 상세
     target_roles: list[str] = []
     career_level: str = ""
     skills_detail: dict = {}
@@ -50,7 +52,26 @@ class ProfileRead(ProfileUpsert):
     experience: list[dict] = []
     projects_detail: list[dict] = []
 
-    @field_validator("skills", "certificates", "projects", "target_roles", mode="before")
+    # 성적표 파싱
+    gpa: str = ""
+    gpa_scale: str = ""
+    transcript_strong_subjects: list[dict] = []
+    transcript_weak_subjects: list[dict] = []
+    total_credits: str = ""
+    completed_semesters: str = ""
+
+    # 포트폴리오 파싱
+    portfolio_projects: list[dict] = []
+    portfolio_total_count: int = 0
+    portfolio_solo_count: int = 0
+    portfolio_team_count: int = 0
+    portfolio_deployed_count: int = 0
+    portfolio_total_months: int = 0
+
+    @field_validator(
+        "skills", "certificates", "projects", "target_roles",
+        mode="before",
+    )
     @classmethod
     def parse_json_list(cls, value: object) -> list:
         if isinstance(value, str):
@@ -68,7 +89,12 @@ class ProfileRead(ProfileUpsert):
             return value
         return {}
 
-    @field_validator("education", "experience", "projects_detail", mode="before")
+    @field_validator(
+        "education", "experience", "projects_detail",
+        "transcript_strong_subjects", "transcript_weak_subjects",
+        "portfolio_projects",
+        mode="before",
+    )
     @classmethod
     def parse_json_list_of_dict(cls, value: object) -> list:
         if isinstance(value, str):
@@ -103,3 +129,37 @@ class EssayDraftRequest(BaseModel):
     job_title: str
     company: str
     question: str
+
+
+class UserPreferenceUpsert(BaseModel):
+    job_roles: list[str] = []
+    company_types: list[str] = []
+    preferred_regions: list[str] = []
+    target_timeline: str = ""
+    weekly_hours: int = 0
+    wants_cert_upgrade: bool = False
+    priority_area: str = ""
+
+
+class UserPreferenceRead(UserPreferenceUpsert):
+    id: int
+    user_id: int
+
+    @field_validator("job_roles", "company_types", "preferred_regions", mode="before")
+    @classmethod
+    def parse_json_list(cls, value: object) -> list:
+        if isinstance(value, str):
+            return json.loads(value)
+        if isinstance(value, list):
+            return value
+        return []
+
+    model_config = {"from_attributes": True}
+
+
+class TranscriptTextRequest(BaseModel):
+    transcript_text: str
+
+
+class PortfolioTextRequest(BaseModel):
+    portfolio_text: str
