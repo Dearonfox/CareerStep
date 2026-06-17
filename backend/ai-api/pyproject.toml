@@ -1,0 +1,17 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "smoke: 범주별 대표 테스트 (빠른 검증용)",
+    "full: 범주별 상세 테스트 (꼼꼼한 검증용)",
+    "retry: 에러 폴백 및 재시도 로직 범주",
+    "concurrency: 동시성 제어 범주",
+    "tracking: 사용량/비용 기록 범주",
+]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60

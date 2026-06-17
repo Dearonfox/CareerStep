@@ -10,3 +10,9 @@ __pycache__
 *.pyc
 backend/crawler-api/data/
 backend/crawler-api/samplefile/
+test_gateway.py
+
+# AI-API Database & Tests
+backend/ai-api/data/
+.coverage
+htmlcov/
