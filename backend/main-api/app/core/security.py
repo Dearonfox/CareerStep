@@ -1,20 +1,44 @@
+import hashlib
+import hmac
+import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from jose import jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+PASSWORD_ALGORITHM = "pbkdf2_sha256"
+PASSWORD_ITERATIONS = 390000
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        PASSWORD_ITERATIONS,
+    ).hex()
+    return f"{PASSWORD_ALGORITHM}${PASSWORD_ITERATIONS}${salt}${digest}"
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(password, hashed_password)
+    try:
+        algorithm, iterations, salt, expected_digest = hashed_password.split("$", 3)
+    except ValueError:
+        return False
+
+    if algorithm != PASSWORD_ALGORITHM:
+        return False
+
+    actual_digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        int(iterations),
+    ).hex()
+    return hmac.compare_digest(actual_digest, expected_digest)
 
 
 def create_access_token(subject: str, role: str) -> str:
