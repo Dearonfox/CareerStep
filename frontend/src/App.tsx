@@ -7,10 +7,21 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
+  Trash2,
   UserPlus,
 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import {
+  bootstrapFirstAdmin,
+  deleteAdminUser,
+  listAdminUsers,
+  updateAdminUserRole,
+  type AdminUser,
+} from './api/admin';
 import { logout as requestLogout } from './api/auth';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
@@ -26,6 +37,7 @@ import { adminStats, dashboardSignals, stats } from './data/mockData';
 import { AuthPage } from './pages/AuthPage';
 import { useCareerStore } from './store/useCareerStore';
 import { useUserStore } from './store/useUserStore';
+import type { UserRole } from './types';
 const navItems = [
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '마이페이지' },
@@ -367,6 +379,223 @@ function AdminPage() {
   );
 }
 
+function UserAdminPage() {
+  const currentUser = useUserStore((state) => state.user);
+  const accessToken = useUserStore((state) => state.accessToken);
+  const refreshToken = useUserStore((state) => state.refreshToken);
+  const setAuth = useUserStore((state) => state.setAuth);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [busyUserId, setBusyUserId] = useState<number | null>(null);
+
+  const userStats = useMemo(() => {
+    const admins = users.filter((user) => user.role === 'ADMIN').length;
+    return {
+      total: users.length,
+      admins,
+      members: users.length - admins,
+    };
+  }, [users]);
+
+  async function loadUsers() {
+    if (currentUser?.role !== 'ADMIN') {
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    try {
+      setUsers(await listAdminUsers());
+    } catch {
+      setError('Failed to load users. Admin permission is required.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadUsers();
+  }, [currentUser?.role]);
+
+  async function handleRoleChange(userId: number, role: UserRole) {
+    setBusyUserId(userId);
+    setError('');
+    try {
+      const updatedUser = await updateAdminUserRole(userId, role);
+      setUsers((items) => items.map((user) => (user.id === userId ? updatedUser : user)));
+    } catch {
+      setError('Failed to update the user role.');
+    } finally {
+      setBusyUserId(null);
+    }
+  }
+
+  async function handleDeleteUser(userId: number) {
+    const target = users.find((user) => user.id === userId);
+    if (!target || !window.confirm(`Delete ${target.email}?`)) {
+      return;
+    }
+
+    setBusyUserId(userId);
+    setError('');
+    try {
+      await deleteAdminUser(userId);
+      setUsers((items) => items.filter((user) => user.id !== userId));
+    } catch {
+      setError('Failed to delete the user.');
+    } finally {
+      setBusyUserId(null);
+    }
+  }
+
+  async function handleBootstrapAdmin() {
+    if (!currentUser || !accessToken || !refreshToken) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    try {
+      const adminUser = await bootstrapFirstAdmin();
+      setAuth(
+        {
+          id: adminUser.id,
+          email: adminUser.email,
+          name: adminUser.name,
+          role: adminUser.role,
+        },
+        accessToken,
+        refreshToken,
+      );
+      setUsers(await listAdminUsers());
+    } catch {
+      setError('Failed to claim admin access. An admin may already exist.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <main className="admin-layout">
+      <AdminSidebar />
+      <section className="admin-main">
+        <div className="page-title">
+          <p className="eyebrow">SaaS Admin</p>
+          <h1>User Management</h1>
+        </div>
+        {currentUser?.role === 'ADMIN' ? (
+          <>
+            <div className="admin-stat-grid">
+              <article className="admin-stat-card">
+                <span>Total users</span>
+                <strong>{userStats.total}</strong>
+                <small>Live data</small>
+              </article>
+              <article className="admin-stat-card">
+                <span>Admins</span>
+                <strong>{userStats.admins}</strong>
+                <small>Role protected</small>
+              </article>
+              <article className="admin-stat-card">
+                <span>Members</span>
+                <strong>{userStats.members}</strong>
+                <small>Standard accounts</small>
+              </article>
+              <article className="admin-stat-card">
+                <span>Status</span>
+                <strong>{isLoading ? 'Sync' : 'Ready'}</strong>
+                <small>API connected</small>
+              </article>
+            </div>
+            <section className="admin-table-card">
+              <div className="section-heading">
+                <div>
+                  <h2>Users</h2>
+                  <p>Review users, change roles, and remove accounts.</p>
+                </div>
+                <Button variant="secondary" icon={RefreshCw} onClick={loadUsers} disabled={isLoading}>
+                  Refresh
+                </Button>
+              </div>
+              {error ? <p className="auth-error">{error}</p> : null}
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.name}</td>
+                      <td>{user.email}</td>
+                      <td>
+                        <select
+                          className="admin-select"
+                          value={user.role}
+                          disabled={busyUserId === user.id}
+                          onChange={(event) => handleRoleChange(user.id, event.target.value as UserRole)}
+                        >
+                          <option value="USER">USER</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </select>
+                      </td>
+                      <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
+                      <td>
+                        <div className="admin-actions">
+                          <Button
+                            variant="ghost"
+                            icon={ShieldCheck}
+                            disabled={busyUserId === user.id || user.role === 'ADMIN'}
+                            onClick={() => handleRoleChange(user.id, 'ADMIN')}
+                          >
+                            Admin
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            icon={Trash2}
+                            disabled={busyUserId === user.id || user.id === currentUser.id}
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!isLoading && users.length === 0 ? (
+                    <tr>
+                      <td colSpan={5}>No users found.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </section>
+          </>
+        ) : (
+          <section className="admin-table-card">
+            <div className="section-heading">
+              <div>
+                <h2>Admin permission required</h2>
+                <p>Your account must have the ADMIN role to manage users. If this is the first account, claim the first admin role.</p>
+              </div>
+              <Button variant="primary" icon={ShieldCheck} onClick={handleBootstrapAdmin} disabled={isLoading}>
+                Claim first admin
+              </Button>
+            </div>
+            {error ? <p className="auth-error">{error}</p> : null}
+          </section>
+        )}
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   return (
     <>
@@ -404,7 +633,7 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedRoute>
-              <AdminPage />
+              <UserAdminPage />
             </ProtectedRoute>
           }
         />
