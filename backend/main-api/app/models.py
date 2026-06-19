@@ -90,7 +90,6 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    mongo_id: Mapped[str | None] = mapped_column(String(40), unique=True, nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200), index=True)
     company: Mapped[str] = mapped_column(String(150))
     location: Mapped[str] = mapped_column(String(150))

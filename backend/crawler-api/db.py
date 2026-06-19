@@ -101,6 +101,37 @@ class MongoDBClient:
             print(f"[오류] MongoDB 상세 정보 업데이트 실패 (ID: {job_id}): {e}")
             return False
 
+    def upsert_activities(self, activities: list[dict]) -> int:
+        """
+        CSAI 대외활동 데이터를 csai_activities 컬렉션에 upsert.
+        _id = board_code_article_id 기준으로 중복 방지.
+        """
+        if self.client is None:
+            print("[오류] 데이터베이스가 연결되어 있지 않아 적재를 취소합니다.")
+            return 0
+
+        if not activities:
+            print("[정보] 적재할 활동 데이터가 없습니다.")
+            return 0
+
+        collection = self.db["csai_activities"]
+        operations = []
+        for activity in activities:
+            doc = activity.copy()
+            doc["_id"] = f"{doc['board_code']}_{doc['article_id']}"
+            doc["source"] = "jbnu_csai"
+            doc.setdefault("scraped_at", datetime.now().isoformat())
+            operations.append(ReplaceOne({"_id": doc["_id"]}, doc, upsert=True))
+
+        try:
+            result = collection.bulk_write(operations, ordered=False)
+            upserted_count = result.upserted_count + result.modified_count
+            print(f"[완료] CSAI 활동 적재 완료: 신규/변경 {upserted_count}개 (매칭 {result.matched_count}개)")
+            return upserted_count
+        except Exception as e:
+            print(f"[오류] bulk_write 실행 중 예외 발생: {e}")
+            return 0
+
     def close(self):
         if self.client:
             self.client.close()
