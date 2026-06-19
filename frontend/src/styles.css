@@ -595,6 +595,16 @@ h4 {
   gap: 10px;
 }
 
+.profile-subsection {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-subsection > strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
 .choice-chip {
   min-height: 40px;
   border: 1px solid var(--border);
@@ -652,6 +662,12 @@ h4 {
 
 .profile-preview-block strong {
   font-size: 20px;
+}
+
+.stack-list strong {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
 }
 
 .search-filter-bar {
