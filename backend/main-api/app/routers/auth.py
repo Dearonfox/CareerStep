@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.redis import redis_client
+from app.core.redis import delete_refresh_token, store_refresh_token
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
 from app.models import User
 from app.schemas import TokenPair, UserCreate, UserLogin
@@ -24,7 +24,7 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)) -> TokenPair:
 
     access_token = create_access_token(str(user.id), user.role.value)
     refresh_token = create_refresh_token()
-    redis_client.setex(f"refresh:{refresh_token}", 60 * 60 * 24 * 14, str(user.id))
+    store_refresh_token(refresh_token, user.id, 60 * 60 * 24 * 14)
     return TokenPair(access_token=access_token, refresh_token=refresh_token, user=user)
 
 
@@ -36,11 +36,11 @@ def login(payload: UserLogin, db: Session = Depends(get_db)) -> TokenPair:
 
     access_token = create_access_token(str(user.id), user.role.value)
     refresh_token = create_refresh_token()
-    redis_client.setex(f"refresh:{refresh_token}", 60 * 60 * 24 * 14, str(user.id))
+    store_refresh_token(refresh_token, user.id, 60 * 60 * 24 * 14)
     return TokenPair(access_token=access_token, refresh_token=refresh_token, user=user)
 
 
 @router.post("/logout")
 def logout(refresh_token: str) -> dict[str, str]:
-    redis_client.delete(f"refresh:{refresh_token}")
+    delete_refresh_token(refresh_token)
     return {"message": "logged out"}
