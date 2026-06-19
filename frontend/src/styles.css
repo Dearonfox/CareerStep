@@ -605,6 +605,35 @@ h4 {
   font-size: 14px;
 }
 
+.inline-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.inline-add-row-wide {
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
+}
+
+.inline-add-row input,
+.inline-add-row select {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 750;
+  outline: 0;
+}
+
+.inline-add-row input:focus,
+.inline-add-row select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
 .choice-chip {
   min-height: 40px;
   border: 1px solid var(--border);
@@ -1187,6 +1216,11 @@ th {
 
   .admin-sidebar nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .inline-add-row,
+  .inline-add-row-wide {
+    grid-template-columns: 1fr;
   }
 }
 

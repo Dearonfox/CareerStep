@@ -81,10 +81,6 @@ function pickPrefixedValues(values: string[], prefix: string) {
   return values.filter((value) => value.startsWith(prefix)).map((value) => stripProfilePrefix(value, prefix));
 }
 
-function pickUnprefixedValues(values: string[], knownPrefixes: string[]) {
-  return values.filter((value) => !knownPrefixes.some((prefix) => value.startsWith(prefix)));
-}
-
 const activities = [
   {
     id: 1,
@@ -286,6 +282,11 @@ function ProfileSpecPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [certificateInput, setCertificateInput] = useState('');
+  const [languageDraft, setLanguageDraft] = useState({
+    testName: languageTestOptions[0],
+    score: '',
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -304,9 +305,7 @@ function ProfileSpecPage() {
           setForm({
             desiredRoles: splitCommaValues(profile.desired_role),
             skills: profile.skills,
-            certificates: pickUnprefixedValues(storedCertificates, ['자격증:', '어학:']).map((value) =>
-              stripProfilePrefix(value, '자격증:'),
-            ),
+            certificates: pickPrefixedValues(storedCertificates, '자격증:'),
             languages: pickPrefixedValues(storedCertificates, '어학:'),
             projects: storedProjects.map((value) =>
               stripProfilePrefix(stripProfilePrefix(value, '프로젝트 형태:'), '담당 경험:'),
@@ -359,8 +358,7 @@ function ProfileSpecPage() {
   }
 
   function addCertificate() {
-    const value = window.prompt('추가할 자격증명을 입력하세요.');
-    const trimmedValue = value?.trim();
+    const trimmedValue = certificateInput.trim();
     if (!trimmedValue) {
       return;
     }
@@ -371,6 +369,7 @@ function ProfileSpecPage() {
       }
       return { ...current, certificates: [...current.certificates, trimmedValue] };
     });
+    setCertificateInput('');
     setMessage('');
   }
 
@@ -383,15 +382,9 @@ function ProfileSpecPage() {
   }
 
   function addLanguage() {
-    const testName = window.prompt(`시험 항목을 입력하세요. 예: ${languageTestOptions.join(', ')}`);
-    const normalizedTestName = testName?.trim();
-    if (!normalizedTestName) {
-      return;
-    }
-
-    const score = window.prompt('점수 또는 등급을 입력하세요. 예: 850, IH, N2');
-    const normalizedScore = score?.trim();
-    if (!normalizedScore) {
+    const normalizedTestName = languageDraft.testName.trim();
+    const normalizedScore = languageDraft.score.trim();
+    if (!normalizedTestName || !normalizedScore) {
       return;
     }
 
@@ -402,6 +395,7 @@ function ProfileSpecPage() {
       }
       return { ...current, languages: [...current.languages, language] };
     });
+    setLanguageDraft((current) => ({ ...current, score: '' }));
     setMessage('');
   }
 
@@ -586,8 +580,23 @@ function ProfileSpecPage() {
                   {certificate}
                 </button>
               ))}
-              <button type="button" className="choice-chip choice-chip-add" onClick={addCertificate}>
-                + 직접 추가
+            </div>
+            <div className="inline-add-row">
+              <input
+                type="text"
+                value={certificateInput}
+                onChange={(event) => setCertificateInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addCertificate();
+                  }
+                }}
+                placeholder="자격증명을 입력하세요"
+                disabled={isLoading}
+              />
+              <button type="button" className="choice-chip choice-chip-add" onClick={addCertificate} disabled={isLoading}>
+                추가
               </button>
             </div>
           </section>
@@ -609,32 +618,34 @@ function ProfileSpecPage() {
                   {language}
                 </button>
               ))}
-              {languageTestOptions.map((testName) => (
-                <button
-                  type="button"
-                  key={testName}
-                  className="choice-chip"
-                  onClick={() => {
-                    const score = window.prompt(`${testName} 점수 또는 등급을 입력하세요.`);
-                    const trimmedScore = score?.trim();
-                    if (!trimmedScore) {
-                      return;
-                    }
-                    const language = `${testName} ${trimmedScore}`;
-                    setForm((current) =>
-                      current.languages.includes(language)
-                        ? current
-                        : { ...current, languages: [...current.languages, language] },
-                    );
-                    setMessage('');
-                  }}
-                  disabled={isLoading}
-                >
-                  {testName}
-                </button>
-              ))}
-              <button type="button" className="choice-chip choice-chip-add" onClick={addLanguage}>
-                + 기타 시험
+            </div>
+            <div className="inline-add-row inline-add-row-wide">
+              <select
+                value={languageDraft.testName}
+                onChange={(event) => setLanguageDraft((current) => ({ ...current, testName: event.target.value }))}
+                disabled={isLoading}
+              >
+                {languageTestOptions.map((testName) => (
+                  <option key={testName} value={testName}>
+                    {testName}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={languageDraft.score}
+                onChange={(event) => setLanguageDraft((current) => ({ ...current, score: event.target.value }))}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addLanguage();
+                  }
+                }}
+                placeholder="점수/등급 예: 850, IH, N2"
+                disabled={isLoading}
+              />
+              <button type="button" className="choice-chip choice-chip-add" onClick={addLanguage} disabled={isLoading}>
+                추가
               </button>
             </div>
           </section>
