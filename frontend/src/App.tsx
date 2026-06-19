@@ -16,7 +16,7 @@ import {
   Trash2,
   UserPlus,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import {
   bootstrapFirstAdmin,
@@ -26,6 +26,7 @@ import {
   type AdminUser,
 } from './api/admin';
 import { logout as requestLogout } from './api/auth';
+import { getMyProfile, saveMyProfile } from './api/profile';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
 import { Button } from './components/Button';
@@ -50,6 +51,24 @@ const navItems = [
 ];
 
 const filterSkills = ['전체', 'React', 'Spring Boot', 'LLM API', 'AWS'];
+
+const emptyProfileForm = {
+  desiredRole: '',
+  skills: '',
+  certificates: '',
+  projects: '',
+};
+
+function splitList(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinList(value: string[]): string {
+  return value.join(', ');
+}
 
 const activities = [
   {
@@ -241,6 +260,220 @@ function DashboardPage() {
             ))}
           </div>
         </DashboardCard>
+      </section>
+    </main>
+  );
+}
+
+function ProfileSpecPage() {
+  const [form, setForm] = useState(emptyProfileForm);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfile() {
+      setIsLoading(true);
+      setError('');
+      try {
+        const profile = await getMyProfile();
+        if (!isMounted) {
+          return;
+        }
+        if (profile) {
+          setForm({
+            desiredRole: profile.desired_role,
+            skills: joinList(profile.skills),
+            certificates: joinList(profile.certificates),
+            projects: joinList(profile.projects),
+          });
+        }
+      } catch {
+        if (isMounted) {
+          setError('프로필 정보를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  function updateField(field: keyof typeof emptyProfileForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setMessage('');
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const savedProfile = await saveMyProfile({
+        desired_role: form.desiredRole.trim(),
+        skills: splitList(form.skills),
+        certificates: splitList(form.certificates),
+        projects: splitList(form.projects),
+      });
+      setForm({
+        desiredRole: savedProfile.desired_role,
+        skills: joinList(savedProfile.skills),
+        certificates: joinList(savedProfile.certificates),
+        projects: joinList(savedProfile.projects),
+      });
+      setMessage('스펙 정보가 저장되었습니다.');
+    } catch {
+      setError('스펙 정보를 저장하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const skills = splitList(form.skills);
+  const certificates = splitList(form.certificates);
+  const projects = splitList(form.projects);
+  const completedFields = [
+    form.desiredRole.trim(),
+    form.skills.trim(),
+    form.certificates.trim(),
+    form.projects.trim(),
+  ].filter(Boolean).length;
+  const completionRate = Math.round((completedFields / 4) * 100);
+
+  return (
+    <main className="page-shell">
+      <div className="page-title">
+        <p className="eyebrow">My Career Profile</p>
+        <h1>내 스펙 관리</h1>
+        <p>추천에 사용할 기본 스펙을 직접 입력하고 저장하세요.</p>
+      </div>
+
+      <section className="stat-grid">
+        <article className="stat-card stat-card-blue">
+          <div className="stat-icon"><LayoutDashboard size={20} /></div>
+          <span>프로필 완성도</span>
+          <strong>{completionRate}%</strong>
+        </article>
+        <article className="stat-card stat-card-purple">
+          <div className="stat-icon"><Sparkles size={20} /></div>
+          <span>기술 키워드</span>
+          <strong>{skills.length}</strong>
+        </article>
+        <article className="stat-card stat-card-green">
+          <div className="stat-icon"><FileText size={20} /></div>
+          <span>자격</span>
+          <strong>{certificates.length}</strong>
+        </article>
+        <article className="stat-card stat-card-orange">
+          <div className="stat-icon"><BriefcaseBusiness size={20} /></div>
+          <span>프로젝트</span>
+          <strong>{projects.length}</strong>
+        </article>
+      </section>
+
+      <section className="profile-editor-layout">
+        <form className="profile-form-card" onSubmit={handleSubmit}>
+          <div className="section-heading">
+            <div>
+              <h2>추천용 기본 스펙</h2>
+              <p>쉼표 또는 줄바꿈으로 여러 항목을 입력할 수 있습니다.</p>
+            </div>
+            <Button variant="primary" icon={FileText} disabled={isLoading || isSaving}>
+              {isSaving ? '저장 중' : '저장'}
+            </Button>
+          </div>
+
+          {error ? <p className="auth-error">{error}</p> : null}
+          {message ? <p className="profile-success">{message}</p> : null}
+
+          <label className="profile-field">
+            <span>원하는 직군</span>
+            <input
+              value={form.desiredRole}
+              onChange={(event) => updateField('desiredRole', event.target.value)}
+              placeholder="예: 프론트엔드 개발자"
+              disabled={isLoading}
+              required
+            />
+          </label>
+
+          <label className="profile-field">
+            <span>기술</span>
+            <textarea
+              value={form.skills}
+              onChange={(event) => updateField('skills', event.target.value)}
+              placeholder="예: React, TypeScript, Spring Boot"
+              disabled={isLoading}
+              rows={4}
+            />
+          </label>
+
+          <label className="profile-field">
+            <span>자격</span>
+            <textarea
+              value={form.certificates}
+              onChange={(event) => updateField('certificates', event.target.value)}
+              placeholder="예: 정보처리기사, SQLD"
+              disabled={isLoading}
+              rows={3}
+            />
+          </label>
+
+          <label className="profile-field">
+            <span>프로젝트</span>
+            <textarea
+              value={form.projects}
+              onChange={(event) => updateField('projects', event.target.value)}
+              placeholder="예: CareerStep, 채용 추천 대시보드"
+              disabled={isLoading}
+              rows={4}
+            />
+          </label>
+        </form>
+
+        <aside className="profile-preview-card">
+          <p className="eyebrow">Preview</p>
+          <h2>추천에 사용될 정보</h2>
+          <div className="profile-preview-block">
+            <span>원하는 직군</span>
+            <strong>{form.desiredRole || '미입력'}</strong>
+          </div>
+          <div className="profile-preview-block">
+            <span>기술</span>
+            <div className="tag-row">
+              {skills.length ? skills.map((skill) => (
+                <SkillTag key={skill} label={skill} tone="ai" />
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+          <div className="profile-preview-block">
+            <span>자격</span>
+            <div className="tag-row">
+              {certificates.length ? certificates.map((certificate) => (
+                <SkillTag key={certificate} label={certificate} tone="success" />
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+          <div className="profile-preview-block">
+            <span>프로젝트</span>
+            <div className="stack-list">
+              {projects.length ? projects.map((project) => (
+                <span key={project}>{project}</span>
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+        </aside>
       </section>
     </main>
   );
@@ -689,7 +922,7 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <ProfileSpecPage />
             </ProtectedRoute>
           }
         />
