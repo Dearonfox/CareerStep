@@ -14,5 +14,7 @@ test_gateway.py
 
 # AI-API Database & Tests
 backend/ai-api/data/
+backend/ai-api/summarized_samples/
+*.sqlite3
 .coverage
 htmlcov/

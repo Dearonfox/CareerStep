@@ -147,3 +147,129 @@ class GPTGateway:
         )
         logger.error(f"Exhausted all retries for endpoint {endpoint}. Last error: {last_exception}")
         raise last_exception
+
+    async def chat_vision_json(
+        self,
+        system_prompt: str,
+        text_payload: dict,
+        image_urls: list[str],
+        endpoint: str,
+        model: str = None,
+        estimated_tokens: int = 3000,
+    ) -> dict:
+        """OpenAI Vision API를 JSON 모드로 호출합니다."""
+        model = model or "gpt-4.1-mini"  # gpt-4.1-mini 사용
+        max_retries = settings.openai_max_retries
+        
+        last_exception = None
+        start_time = time.time()
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": json.dumps({"input": text_payload}, ensure_ascii=False)},
+                ]
+            }
+        ]
+        for url in image_urls:
+            messages[1]["content"].append({
+                "type": "image_url",
+                "image_url": {"url": url, "detail": "high"}
+            })
+
+        for attempt in range(1, max_retries + 2):
+            await self.rate_limiter.acquire(estimated_tokens)
+            attempt_start = time.time()
+            try:
+                response = await self.client.chat.completions.create(
+                    model=model,
+                    response_format={"type": "json_object"},
+                    max_tokens=settings.max_tokens,
+                    temperature=0.2,
+                    messages=messages,
+                )
+                
+                content = response.choices[0].message.content or "{}"
+                result = json.loads(content)
+                
+                latency_ms = int((time.time() - start_time) * 1000)
+                usage = response.usage
+                prompt_tokens = usage.prompt_tokens if usage else estimated_tokens
+                completion_tokens = usage.completion_tokens if usage else 0
+                
+                await self.rate_limiter.update_tokens(estimated_tokens, prompt_tokens + completion_tokens)
+                
+                # 로그 및 사용량 기록 (vision도 동일하게 기록)
+                await write_ai_log(endpoint, text_payload, result)
+                await track_usage(
+                    endpoint=endpoint,
+                    model=model,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    status="success" if attempt == 1 else "retry_success",
+                    retry_count=attempt - 1,
+                    latency_ms=latency_ms,
+                )
+                
+                return result
+
+            except (openai.RateLimitError, openai.InternalServerError, openai.APIConnectionError, asyncio.TimeoutError, json.JSONDecodeError) as e:
+                last_exception = e
+                latency_ms = int((time.time() - attempt_start) * 1000)
+                logger.warning(f"Retryable error on endpoint {endpoint} (attempt {attempt}/{max_retries + 1}): {e}")
+                
+                await self.rate_limiter.update_tokens(estimated_tokens, 0)
+                
+                if attempt <= max_retries:
+                    sleep_time = (2 ** attempt) + (time.time() % 1.0)
+                    await asyncio.sleep(sleep_time)
+                else:
+                    break
+            except openai.APIStatusError as e:
+                latency_ms = int((time.time() - start_time) * 1000)
+                await self.rate_limiter.update_tokens(estimated_tokens, 0)
+                
+                await track_usage(
+                    endpoint=endpoint,
+                    model=model,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    status="failed_client_error",
+                    retry_count=attempt - 1,
+                    latency_ms=latency_ms,
+                )
+                logger.error(f"Client error on endpoint {endpoint} (no retry): {e}")
+                raise e
+            except Exception as e:
+                latency_ms = int((time.time() - start_time) * 1000)
+                await self.rate_limiter.update_tokens(estimated_tokens, 0)
+                
+                await track_usage(
+                    endpoint=endpoint,
+                    model=model,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    status="failed_unknown_error",
+                    retry_count=attempt - 1,
+                    latency_ms=latency_ms,
+                )
+                logger.error(f"Unknown error on endpoint {endpoint} (no retry): {e}")
+                raise e
+            finally:
+                self.rate_limiter.release()
+
+        latency_ms = int((time.time() - start_time) * 1000)
+        await track_usage(
+            endpoint=endpoint,
+            model=model,
+            prompt_tokens=0,
+            completion_tokens=0,
+            status="failed_exhausted_retries",
+            retry_count=max_retries,
+            latency_ms=latency_ms,
+        )
+        logger.error(f"Exhausted all retries for endpoint {endpoint}. Last error: {last_exception}")
+        raise last_exception
+

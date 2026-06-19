@@ -17,11 +17,11 @@
 ## 🔴 우선순위 높음 (다음 세션에서 즉시 진행)
 
 ### 1. GPT 요약 엔진 구현 (`ai-api` 확장)
-- [ ] MongoDB `job_raw` 컬렉션에서 `status: "detailed"` 도큐먼트를 배치 단위로 조회하는 리더 구현
-- [ ] **텍스트 공고** (`is_image_job == False`): `detail_markdown`을 가벼운 모델(`gpt-4o-mini`)에 전달하여 구조화된 JSON 요약 추출
+- [x] MongoDB `job_raw` 컬렉션에서 `status: "detailed"` 도큐먼트를 배치 단위로 조회하는 리더 구현
+- [x] **텍스트 공고** (`is_image_job == False`): `detail_markdown`을 가벼운 모델(`gpt-4.1-mini`)에 전달하여 구조화된 JSON 요약 추출
   - 추출 항목 예시: 모집 분야, 자격 요건, 우대 사항, 기술 스택, 복지/혜택, 근무 조건
-- [ ] **이미지 공고** (`is_image_job == True`): `image_urls`를 OpenAI Vision API(`gpt-4o`)에 전달하여 이미지 기반 요약 추출
-- [ ] 요약 결과를 MongoDB `job_raw` 도큐먼트에 `summary` 필드로 업데이트하고 `status`를 `"summarized"`로 갱신
+- [x] **이미지 공고** (`is_image_job == True`): `image_urls`를 OpenAI Vision API(`gpt-4.1-mini`/`gpt-4o`)에 전달하여 이미지 기반 요약 추출
+- [x] 요약 결과를 MongoDB `job_raw` 도큐먼트에 `summary` 필드로 업데이트하고 `status`를 `"summarized"`로 갱신
 - [ ] 요약 프롬프트 설계 및 JSON 출력 스키마 정의
 
 ### 2. GPT 요약 프롬프트 최적화

@@ -8,11 +8,13 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     internal_service_key: str = "change-me-internal-service-key"
     ai_log_db_path: str = "/data/ai_logs.sqlite3"
-    max_tokens: int = 1500
+    max_tokens: int = 4000
     openai_rpm_limit: int = 200
     openai_tpm_limit: int = 80000
     openai_max_retries: int = 3
     openai_concurrency_limit: int = 5
+    mongodb_uri: str = ""
+    summarize_batch_size: int = 10
 
 
 settings = Settings()

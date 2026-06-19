@@ -7,6 +7,8 @@ markers = [
     "retry: 에러 폴백 및 재시도 로직 범주",
     "concurrency: 동시성 제어 범주",
     "tracking: 사용량/비용 기록 범주",
+    "summarize: 요약 엔진 범주",
+    "tiling: 이미지 타일링 범주",
 ]
 
 [tool.coverage.run]
