@@ -26,6 +26,14 @@ class UserRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AdminUserRead(UserRead):
+    created_at: str
+
+
+class UserRoleUpdate(BaseModel):
+    role: UserRole
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
