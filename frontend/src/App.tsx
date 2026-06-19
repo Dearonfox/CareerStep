@@ -54,21 +54,15 @@ const filterSkills = ['전체', 'React', 'Spring Boot', 'LLM API', 'AWS'];
 
 const emptyProfileForm = {
   desiredRole: '',
-  skills: '',
-  certificates: '',
-  projects: '',
+  skills: [] as string[],
+  certificates: [] as string[],
+  projects: [] as string[],
 };
 
-function splitList(value: string): string[] {
-  return value
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function joinList(value: string[]): string {
-  return value.join(', ');
-}
+const roleOptions = ['프론트엔드 개발자', '백엔드 개발자', '풀스택 개발자', 'AI/데이터', 'DevOps', '기획/PM'];
+const skillOptions = ['React', 'TypeScript', 'JavaScript', 'Spring Boot', 'Node.js', 'Python', 'MySQL', 'PostgreSQL', 'AWS', 'Docker', 'Git'];
+const certificateOptions = ['정보처리기사', 'SQLD', 'ADsP', '컴활', '토익', 'OPIc'];
+const projectOptions = ['개인 프로젝트', '팀 프로젝트', '배포 경험', 'API 연동', 'DB 설계', '오픈소스 경험'];
 
 const activities = [
   {
@@ -286,9 +280,9 @@ function ProfileSpecPage() {
         if (profile) {
           setForm({
             desiredRole: profile.desired_role,
-            skills: joinList(profile.skills),
-            certificates: joinList(profile.certificates),
-            projects: joinList(profile.projects),
+            skills: profile.skills,
+            certificates: profile.certificates,
+            projects: profile.projects,
           });
         }
       } catch {
@@ -308,8 +302,36 @@ function ProfileSpecPage() {
     };
   }, []);
 
-  function updateField(field: keyof typeof emptyProfileForm, value: string) {
-    setForm((current) => ({ ...current, [field]: value }));
+  function updateDesiredRole(value: string) {
+    setForm((current) => ({ ...current, desiredRole: value }));
+    setMessage('');
+  }
+
+  function toggleSelection(field: 'skills' | 'certificates' | 'projects', value: string) {
+    setForm((current) => {
+      const selectedValues = current[field];
+      const nextValues = selectedValues.includes(value)
+        ? selectedValues.filter((item) => item !== value)
+        : [...selectedValues, value];
+      return { ...current, [field]: nextValues };
+    });
+    setMessage('');
+  }
+
+  function addCustomValue(field: 'skills' | 'certificates' | 'projects') {
+    const label = field === 'skills' ? '기술' : field === 'certificates' ? '자격' : '프로젝트 경험';
+    const value = window.prompt(`추가할 ${label}을 입력하세요.`);
+    const trimmedValue = value?.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    setForm((current) => {
+      if (current[field].includes(trimmedValue)) {
+        return current;
+      }
+      return { ...current, [field]: [...current[field], trimmedValue] };
+    });
     setMessage('');
   }
 
@@ -322,15 +344,15 @@ function ProfileSpecPage() {
     try {
       const savedProfile = await saveMyProfile({
         desired_role: form.desiredRole.trim(),
-        skills: splitList(form.skills),
-        certificates: splitList(form.certificates),
-        projects: splitList(form.projects),
+        skills: form.skills,
+        certificates: form.certificates,
+        projects: form.projects,
       });
       setForm({
         desiredRole: savedProfile.desired_role,
-        skills: joinList(savedProfile.skills),
-        certificates: joinList(savedProfile.certificates),
-        projects: joinList(savedProfile.projects),
+        skills: savedProfile.skills,
+        certificates: savedProfile.certificates,
+        projects: savedProfile.projects,
       });
       setMessage('스펙 정보가 저장되었습니다.');
     } catch {
@@ -340,16 +362,16 @@ function ProfileSpecPage() {
     }
   }
 
-  const skills = splitList(form.skills);
-  const certificates = splitList(form.certificates);
-  const projects = splitList(form.projects);
   const completedFields = [
     form.desiredRole.trim(),
-    form.skills.trim(),
-    form.certificates.trim(),
-    form.projects.trim(),
+    form.skills.length,
+    form.certificates.length,
+    form.projects.length,
   ].filter(Boolean).length;
   const completionRate = Math.round((completedFields / 4) * 100);
+  const skills = form.skills;
+  const certificates = form.certificates;
+  const projects = form.projects;
 
   return (
     <main className="page-shell">
@@ -397,49 +419,94 @@ function ProfileSpecPage() {
           {error ? <p className="auth-error">{error}</p> : null}
           {message ? <p className="profile-success">{message}</p> : null}
 
-          <label className="profile-field">
-            <span>원하는 직군</span>
-            <input
-              value={form.desiredRole}
-              onChange={(event) => updateField('desiredRole', event.target.value)}
-              placeholder="예: 프론트엔드 개발자"
-              disabled={isLoading}
-              required
-            />
-          </label>
+          <section className="profile-choice-section">
+            <div>
+              <h3>원하는 직군</h3>
+              <p>하나만 선택하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {roleOptions.map((role) => (
+                <button
+                  type="button"
+                  key={role}
+                  className={`choice-chip ${form.desiredRole === role ? 'choice-chip-active' : ''}`}
+                  onClick={() => updateDesiredRole(role)}
+                  disabled={isLoading}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </section>
 
-          <label className="profile-field">
-            <span>기술</span>
-            <textarea
-              value={form.skills}
-              onChange={(event) => updateField('skills', event.target.value)}
-              placeholder="예: React, TypeScript, Spring Boot"
-              disabled={isLoading}
-              rows={4}
-            />
-          </label>
+          <section className="profile-choice-section">
+            <div>
+              <h3>기술</h3>
+              <p>해당하는 기술을 모두 선택하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {skillOptions.map((skill) => (
+                <button
+                  type="button"
+                  key={skill}
+                  className={`choice-chip ${form.skills.includes(skill) ? 'choice-chip-active' : ''}`}
+                  onClick={() => toggleSelection('skills', skill)}
+                  disabled={isLoading}
+                >
+                  {skill}
+                </button>
+              ))}
+              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('skills')}>
+                + 직접 추가
+              </button>
+            </div>
+          </section>
 
-          <label className="profile-field">
-            <span>자격</span>
-            <textarea
-              value={form.certificates}
-              onChange={(event) => updateField('certificates', event.target.value)}
-              placeholder="예: 정보처리기사, SQLD"
-              disabled={isLoading}
-              rows={3}
-            />
-          </label>
+          <section className="profile-choice-section">
+            <div>
+              <h3>자격</h3>
+              <p>보유한 자격이나 어학 항목을 선택하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {certificateOptions.map((certificate) => (
+                <button
+                  type="button"
+                  key={certificate}
+                  className={`choice-chip ${form.certificates.includes(certificate) ? 'choice-chip-active' : ''}`}
+                  onClick={() => toggleSelection('certificates', certificate)}
+                  disabled={isLoading}
+                >
+                  {certificate}
+                </button>
+              ))}
+              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('certificates')}>
+                + 직접 추가
+              </button>
+            </div>
+          </section>
 
-          <label className="profile-field">
-            <span>프로젝트</span>
-            <textarea
-              value={form.projects}
-              onChange={(event) => updateField('projects', event.target.value)}
-              placeholder="예: CareerStep, 채용 추천 대시보드"
-              disabled={isLoading}
-              rows={4}
-            />
-          </label>
+          <section className="profile-choice-section">
+            <div>
+              <h3>프로젝트 경험</h3>
+              <p>프로젝트에서 경험한 항목을 선택하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {projectOptions.map((project) => (
+                <button
+                  type="button"
+                  key={project}
+                  className={`choice-chip ${form.projects.includes(project) ? 'choice-chip-active' : ''}`}
+                  onClick={() => toggleSelection('projects', project)}
+                  disabled={isLoading}
+                >
+                  {project}
+                </button>
+              ))}
+              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('projects')}>
+                + 직접 추가
+              </button>
+            </div>
+          </section>
         </form>
 
         <aside className="profile-preview-card">
