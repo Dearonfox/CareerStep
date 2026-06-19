@@ -1,8 +1,11 @@
 import {
+  Activity,
   Bot,
   BriefcaseBusiness,
+  CalendarDays,
   ClipboardList,
   Copy,
+  ExternalLink,
   FileText,
   LayoutDashboard,
   LogIn,
@@ -42,12 +45,41 @@ const navItems = [
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '마이페이지' },
   { to: '/jobs', label: '채용공고' },
-  { to: '/recommendations', label: 'AI 추천' },
-  { to: '/ai-tools', label: '자소서/면접 AI' },
+  { to: '/activities', label: '대외활동' },
   { to: '/admin', label: '관리자' },
 ];
 
 const filterSkills = ['전체', 'React', 'Spring Boot', 'LLM API', 'AWS'];
+
+const activities = [
+  {
+    id: 1,
+    title: '오픈소스 컨트리뷰션 챌린지',
+    organizer: '한국소프트웨어산업협회',
+    period: '2026.07.01 - 2026.08.30',
+    category: '개발',
+    tags: ['GitHub', 'React', '협업'],
+    status: '추천 로직 연동 예정',
+  },
+  {
+    id: 2,
+    title: 'AI 서비스 기획 해커톤',
+    organizer: 'Seoul Tech Hub',
+    period: '2026.07.12 - 2026.07.14',
+    category: '해커톤',
+    tags: ['AI', '서비스기획', '프로토타입'],
+    status: '추천 로직 연동 예정',
+  },
+  {
+    id: 3,
+    title: '프론트엔드 포트폴리오 스터디',
+    organizer: 'CareerStep Community',
+    period: '상시 모집',
+    category: '스터디',
+    tags: ['TypeScript', '포트폴리오', '면접'],
+    status: '추천 로직 연동 예정',
+  },
+];
 
 function Header() {
   const navigate = useNavigate();
@@ -115,8 +147,8 @@ function HomePage() {
           분석합니다. 이제 공고를 찾는 일이 아니라 준비 상태를 관리하세요.
         </p>
         <div className="hero-actions">
-          <Button variant="ai" icon={Sparkles} onClick={() => navigate('/recommendations')}>
-            AI 추천 시작하기
+          <Button variant="ai" icon={Sparkles} onClick={() => navigate('/activities')}>
+            대외활동 보러가기
           </Button>
           <Button variant="secondary" icon={BriefcaseBusiness} onClick={() => navigate('/jobs')}>
             공고 둘러보기
@@ -257,6 +289,55 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function ActivitiesPage() {
+  return (
+    <main className="page-shell">
+      <div className="page-title">
+        <p className="eyebrow">External Activities</p>
+        <h1>대외활동</h1>
+        <p>추천 로직이 완성되면 사용자 프로필과 관심 직무에 맞춰 대외활동을 자동 추천합니다.</p>
+      </div>
+
+      <section className="activity-toolbar">
+        <div>
+          <strong>추천 엔진 연동 대기</strong>
+          <span>현재는 화면 구조와 카드 UI를 먼저 반영한 상태입니다.</span>
+        </div>
+        <Button variant="secondary" icon={Activity} disabled>
+          추천 준비중
+        </Button>
+      </section>
+
+      <section className="activity-grid">
+        {activities.map((activity) => (
+          <article className="activity-card" key={activity.id}>
+            <div className="activity-card-header">
+              <span className="status-pill">{activity.category}</span>
+              <small>{activity.status}</small>
+            </div>
+            <h3>{activity.title}</h3>
+            <div className="meta-row">
+              <span>
+                <ExternalLink size={15} />
+                {activity.organizer}
+              </span>
+              <span>
+                <CalendarDays size={15} />
+                {activity.period}
+              </span>
+            </div>
+            <div className="tag-row">
+              {activity.tags.map((tag) => (
+                <SkillTag key={tag} label={tag} tone="ai" />
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
+    </main>
   );
 }
 
@@ -613,22 +694,7 @@ export default function App() {
           }
         />
         <Route path="/jobs" element={<JobsPage />} />
-        <Route
-          path="/recommendations"
-          element={
-            <ProtectedRoute>
-              <RecommendationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/ai-tools"
-          element={
-            <ProtectedRoute>
-              <AiToolsPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/activities" element={<ActivitiesPage />} />
         <Route
           path="/admin"
           element={

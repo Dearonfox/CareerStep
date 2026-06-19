@@ -256,6 +256,7 @@ h4 {
 
 .preview-panel,
 .job-card,
+.activity-card,
 .dashboard-card,
 .ai-panel,
 .tool-form,
@@ -581,13 +582,64 @@ h4 {
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-.job-card:hover {
+.job-card:hover,
+.activity-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 18px 42px rgba(17, 24, 39, 0.1);
 }
 
-.job-card h3 {
+.job-card h3,
+.activity-card h3 {
   margin-bottom: 8px;
+}
+
+.activity-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: #fff;
+}
+
+.activity-toolbar strong,
+.activity-toolbar span {
+  display: block;
+}
+
+.activity-toolbar span {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.activity-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.activity-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-card-header small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .meta-row {
@@ -981,7 +1033,8 @@ th {
 
   .stat-grid,
   .admin-stat-grid,
-  .bento-grid {
+  .bento-grid,
+  .activity-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1018,6 +1071,7 @@ th {
   .stat-grid,
   .admin-stat-grid,
   .bento-grid,
+  .activity-grid,
   .readiness,
   .question-grid,
   .preview-stats {
@@ -1030,6 +1084,7 @@ th {
 
   .profile-progress,
   .search-filter-bar,
+  .activity-toolbar,
   .job-card-header,
   .result-header,
   .auth-actions {
