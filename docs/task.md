@@ -22,12 +22,19 @@
   - 추출 항목 예시: 모집 분야, 자격 요건, 우대 사항, 기술 스택, 복지/혜택, 근무 조건
 - [x] **이미지 공고** (`is_image_job == True`): `image_urls`를 OpenAI Vision API(`gpt-4.1-mini`/`gpt-4o`)에 전달하여 이미지 기반 요약 추출
 - [x] 요약 결과를 MongoDB `job_raw` 도큐먼트에 `summary` 필드로 업데이트하고 `status`를 `"summarized"`로 갱신
-- [ ] 요약 프롬프트 설계 및 JSON 출력 스키마 정의
+- [x] 요약 프롬프트 설계 및 JSON 출력 스키마 정의
 
 ### 2. GPT 요약 프롬프트 최적화
-- [ ] 다양한 공고 형식(테이블형, 리스트형, 혼합형)에 대응하는 범용 프롬프트 작성
-- [ ] 10~20개 샘플로 요약 품질 검증 및 프롬프트 튜닝
-- [ ] 비용 최적화: 텍스트 공고 → `gpt-4o-mini`, 이미지 공고 → `gpt-4o` 분기 처리
+- [x] 다양한 공고 형식(테이블형, 리스트형, 혼합형)에 대응하는 범용 프롬프트 작성
+- [x] 10~20개 샘플로 요약 품질 검증 및 프롬프트 튜닝
+- [x] 비용 최적화: 텍스트 공고 → `gpt-4.1-mini`, 이미지 공고 → `gpt-4.1-mini` 분기 처리 (모두 지원됨)
+- [x] 공고 직군 오분류 방지를 위한 Category/Tags 의존성 제거 (Extract Once)
+
+### 3. 직무 라우팅 (Routing) 파이프라인 구축 (`ai-api` 확장)
+- [x] 표면형 정규화를 위한 `alias_dict.py` 구현
+- [x] 26개 직군 스코어링 및 정규화를 수행하는 `router.py` 독립 서비스 구현
+- [x] `pytest` 기반 골든셋 자동화 테스트 작성 (`test_router.py`)
+- [x] MongoDB의 `status: "summarized"` 도큐먼트에 `routed_roles` 스키마 업데이트 파이프라인 (Threshold + Top-3 정책 적용)
 
 ---
 

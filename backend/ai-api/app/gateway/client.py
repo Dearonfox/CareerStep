@@ -7,6 +7,10 @@ from app.core.logging import write_ai_log
 from app.gateway.rate_limiter import RateLimiter
 from app.gateway.usage_tracker import track_usage
 import openai
+from pydantic import BaseModel
+
+class GatewayError(Exception):
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +28,7 @@ class GPTGateway:
         system_prompt: str,
         payload: dict,
         endpoint: str,
+        response_format: type[BaseModel],
         model: str = None,
         estimated_tokens: int = 1500,
     ) -> dict:
@@ -42,9 +47,9 @@ class GPTGateway:
             await self.rate_limiter.acquire(estimated_tokens)
             attempt_start = time.time()
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.client.beta.chat.completions.parse(
                     model=model,
-                    response_format={"type": "json_object"},
+                    response_format=response_format,
                     max_tokens=settings.max_tokens,
                     temperature=0.2,
                     messages=[
@@ -56,8 +61,15 @@ class GPTGateway:
                     ],
                 )
                 
-                content = response.choices[0].message.content or "{}"
-                result = json.loads(content)
+                msg = response.choices[0].message
+                finish = response.choices[0].finish_reason
+
+                if msg.refusal:
+                    raise GatewayError(f"model refused: {msg.refusal}")
+                if msg.parsed is None:
+                    raise GatewayError(f"structured parse failed (finish_reason={finish})")
+
+                result = msg.parsed.model_dump(mode="json")
                 
                 # 성공 시 정보 처리
                 latency_ms = int((time.time() - start_time) * 1000)
@@ -154,6 +166,7 @@ class GPTGateway:
         text_payload: dict,
         image_urls: list[str],
         endpoint: str,
+        response_format: type[BaseModel],
         model: str = None,
         estimated_tokens: int = 3000,
     ) -> dict:
@@ -183,16 +196,23 @@ class GPTGateway:
             await self.rate_limiter.acquire(estimated_tokens)
             attempt_start = time.time()
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.client.beta.chat.completions.parse(
                     model=model,
-                    response_format={"type": "json_object"},
+                    response_format=response_format,
                     max_tokens=settings.max_tokens,
                     temperature=0.2,
                     messages=messages,
                 )
                 
-                content = response.choices[0].message.content or "{}"
-                result = json.loads(content)
+                msg = response.choices[0].message
+                finish = response.choices[0].finish_reason
+
+                if msg.refusal:
+                    raise GatewayError(f"model refused: {msg.refusal}")
+                if msg.parsed is None:
+                    raise GatewayError(f"structured parse failed (finish_reason={finish})")
+
+                result = msg.parsed.model_dump(mode="json")
                 
                 latency_ms = int((time.time() - start_time) * 1000)
                 usage = response.usage

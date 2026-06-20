@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.gateway import gpt_gateway
 from app.services.prompts import SUMMARIZE_TEXT_SYSTEM_PROMPT, SUMMARIZE_IMAGE_SYSTEM_PROMPT
 from app.services.image_tiler import prepare_image_inputs
-from app.schemas_summarize import SummarizeBatchResult
+from app.schemas_summarize import SummarizeBatchResult, JobSummaryResult
 
 class JobSummarizer:
     """MongoDB에서 status: 'detailed' 공고를 읽어 GPT로 요약한 뒤 결과를 저장"""
@@ -65,16 +65,15 @@ class JobSummarizer:
 
     async def _summarize_text(self, job: dict) -> dict:
         payload = {
-            "source_category": job.get("category", ""),
             "company_name": job.get("company_name", ""),
             "title": job.get("title", ""),
-            "tags": job.get("tags", []),
             "detail_markdown": job.get("detail_markdown", "")
         }
         return await gpt_gateway.chat_json(
             system_prompt=SUMMARIZE_TEXT_SYSTEM_PROMPT,
             payload=payload,
             endpoint="/summarize/text",
+            response_format=JobSummaryResult,
             model="gpt-4.1-mini",
             estimated_tokens=2000
         )
@@ -89,15 +88,14 @@ class JobSummarizer:
             model = "gpt-4.1-mini" # User requested to use gpt-4.1-mini explicitly for all
         
         text_payload = {
-            "source_category": job.get("category", ""),
             "company_name": job.get("company_name", ""),
-            "title": job.get("title", ""),
-            "tags": job.get("tags", [])
+            "title": job.get("title", "")
         }
         return await gpt_gateway.chat_vision_json(
             system_prompt=SUMMARIZE_IMAGE_SYSTEM_PROMPT,
             text_payload=text_payload,
             image_urls=prepared_urls,
             endpoint="/summarize/image",
+            response_format=JobSummaryResult,
             model=model
         )
