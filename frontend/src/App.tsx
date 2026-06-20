@@ -27,7 +27,7 @@ import {
 } from './api/admin';
 import { changePassword, logout as requestLogout } from './api/auth';
 import { getMyProfile, saveMyProfile } from './api/profile';
-import { AdminSidebar } from './components/AdminSidebar';
+import { AdminSidebar, type AdminSection } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
 import { Button } from './components/Button';
 import { DashboardCard } from './components/DashboardCard';
@@ -1105,8 +1105,109 @@ function AdminPage() {
   );
 }
 
+const adminSectionCopy: Record<AdminSection, { title: string; description: string }> = {
+  dashboard: {
+    title: '운영 대시보드',
+    description: '서비스의 핵심 운영 현황을 한눈에 확인합니다.',
+  },
+  users: {
+    title: '사용자 관리',
+    description: '가입한 사용자를 확인하고 관리자 권한을 관리합니다.',
+  },
+  jobs: {
+    title: '채용공고 관리',
+    description: '수집된 채용공고를 검수하고 노출 상태를 관리하는 영역입니다.',
+  },
+  activities: {
+    title: '대외활동 관리',
+    description: '추천에 사용할 대외활동 데이터를 관리하는 영역입니다.',
+  },
+  skills: {
+    title: '스킬 관리',
+    description: '추천과 유사도 계산에 쓰이는 기술 키워드를 관리하는 영역입니다.',
+  },
+  aiLogs: {
+    title: 'AI 로그',
+    description: 'AI 추천, 분석 요청, 응답 상태를 확인하는 영역입니다.',
+  },
+  reports: {
+    title: '신고/검수',
+    description: '부적절한 데이터나 사용자 신고를 검토하는 영역입니다.',
+  },
+  statistics: {
+    title: '통계',
+    description: '사용자, 공고, 추천 사용량을 지표로 확인하는 영역입니다.',
+  },
+  settings: {
+    title: '설정',
+    description: '서비스 운영 정책과 관리자 설정을 조정하는 영역입니다.',
+  },
+};
+
+function AdminDashboardOverview({ totalUsers, admins, members }: { totalUsers: number; admins: number; members: number }) {
+  return (
+    <>
+      <div className="admin-stat-grid">
+        <article className="admin-stat-card">
+          <span>전체 사용자</span>
+          <strong>{totalUsers}</strong>
+          <small>가입 계정 기준</small>
+        </article>
+        <article className="admin-stat-card">
+          <span>관리자</span>
+          <strong>{admins}</strong>
+          <small>운영 권한 계정</small>
+        </article>
+        <article className="admin-stat-card">
+          <span>일반 사용자</span>
+          <strong>{members}</strong>
+          <small>서비스 이용 계정</small>
+        </article>
+        <article className="admin-stat-card">
+          <span>운영 상태</span>
+          <strong>정상</strong>
+          <small>관리 기능 연결됨</small>
+        </article>
+      </div>
+      <section className="admin-table-card">
+        <div className="section-heading">
+          <div>
+            <h2>관리 메뉴 안내</h2>
+            <p>현재 사용자 관리는 바로 사용할 수 있고, 나머지 메뉴는 기능 확장 예정입니다.</p>
+          </div>
+        </div>
+        <div className="admin-module-grid">
+          {[
+            ['사용자', '계정 목록 조회, 권한 변경, 계정 삭제'],
+            ['채용공고', '공고 검수, 숨김 처리, 추천 노출 관리 예정'],
+            ['대외활동', '대외활동 데이터 검수 및 추천 노출 관리 예정'],
+            ['AI 로그', '추천 요청 및 분석 결과 추적 예정'],
+          ].map(([title, description]) => (
+            <article key={title} className="admin-module-card">
+              <strong>{title}</strong>
+              <span>{description}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function AdminComingSoon({ section }: { section: { title: string; description: string } }) {
+  return (
+    <section className="admin-table-card admin-empty-state">
+      <p className="eyebrow">Coming Soon</p>
+      <h2>{section.title}</h2>
+      <p>{section.description}</p>
+      <span>아직 관리 기능은 준비 중입니다. 지금은 사용자 관리와 운영 대시보드를 사용할 수 있습니다.</span>
+    </section>
+  );
+}
+
 function UserAdminPage() {
   const currentUser = useUserStore((state) => state.user);
+  const [activeSection, setActiveSection] = useState<AdminSection>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1120,6 +1221,7 @@ function UserAdminPage() {
       members: users.length - admins,
     };
   }, [users]);
+  const activeCopy = adminSectionCopy[activeSection];
 
   async function loadUsers() {
     if (currentUser?.role !== 'ADMIN') {
@@ -1174,14 +1276,16 @@ function UserAdminPage() {
 
   return (
     <main className="admin-layout">
-      <AdminSidebar />
+      <AdminSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
       <section className="admin-main">
         <div className="page-title">
           <p className="eyebrow">CareerStep Admin</p>
-          <h1>사용자 관리</h1>
+          <h1>{activeCopy.title}</h1>
+          <p>{activeCopy.description}</p>
         </div>
         {currentUser?.role === 'ADMIN' ? (
-          <>
+          activeSection === 'users' ? (
+            <>
             <div className="admin-stat-grid">
               <article className="admin-stat-card">
                 <span>전체 사용자</span>
@@ -1272,7 +1376,12 @@ function UserAdminPage() {
                 </tbody>
               </table>
             </section>
-          </>
+            </>
+          ) : activeSection === 'dashboard' ? (
+            <AdminDashboardOverview totalUsers={userStats.total} admins={userStats.admins} members={userStats.members} />
+          ) : (
+            <AdminComingSoon section={activeCopy} />
+          )
         ) : (
           <section className="admin-table-card">
             <div className="section-heading">
