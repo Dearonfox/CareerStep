@@ -53,7 +53,7 @@ class GPTGateway:
                 response = await self.client.beta.chat.completions.parse(
                     model=model,
                     response_format=response_format,
-                    max_tokens=output_tokens,
+                    max_completion_tokens=output_tokens,
                     temperature=0.2,
                     messages=[
                         {"role": "system", "content": system_prompt},
