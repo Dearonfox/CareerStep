@@ -756,12 +756,19 @@ function ProfileSpecPage() {
 function JobsPage({ compact = false }: { compact?: boolean }) {
   const {
     jobs,
+    isLoadingJobs,
+    jobsError,
+    loadJobs,
     query,
     selectedSkill,
     setQuery,
     setSelectedSkill,
     toggleSaved,
   } = useCareerStore();
+
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredJobs = jobs.filter((job) => {
@@ -790,10 +797,15 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
         onQueryChange={setQuery}
         onSkillChange={setSelectedSkill}
       />
+      {isLoadingJobs ? <p className="profile-success">채용공고를 불러오는 중입니다.</p> : null}
+      {jobsError ? <p className="auth-error">{jobsError}</p> : null}
       <div className="job-list">
         {filteredJobs.map((job) => (
           <JobCard key={job.id} job={job} onToggleSaved={toggleSaved} />
         ))}
+        {!isLoadingJobs && filteredJobs.length === 0 ? (
+          <p className="profile-success">조건에 맞는 채용공고가 없습니다.</p>
+        ) : null}
       </div>
     </section>
   );

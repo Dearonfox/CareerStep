@@ -11,3 +11,4 @@ python-multipart==0.0.20
 email-validator==2.2.0
 pdfplumber==0.11.4
 psycopg2-binary==2.9.10
+pymongo[srv]==4.12.0
