@@ -256,7 +256,10 @@ h4 {
 
 .preview-panel,
 .job-card,
+.activity-card,
 .dashboard-card,
+.profile-form-card,
+.profile-preview-card,
 .ai-panel,
 .tool-form,
 .ai-result,
@@ -410,6 +413,8 @@ h4 {
 }
 
 .dashboard-card,
+.profile-form-card,
+.profile-preview-card,
 .tool-form,
 .ai-result,
 .admin-table-card {
@@ -534,6 +539,166 @@ h4 {
   font-size: 13px;
 }
 
+.profile-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.profile-form-card {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.profile-field input,
+.profile-field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 13px 14px;
+  outline: 0;
+  background: #f8fafc;
+  color: var(--text);
+  resize: vertical;
+}
+
+.profile-choice-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.profile-choice-section h3 {
+  margin-bottom: 4px;
+}
+
+.profile-choice-section p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.choice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-subsection {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-subsection > strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.inline-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.inline-add-row-wide {
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
+}
+
+.inline-add-row input,
+.inline-add-row select {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 750;
+  outline: 0;
+}
+
+.inline-add-row input:focus,
+.inline-add-row select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.choice-chip {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 800;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.choice-chip:hover {
+  transform: translateY(-1px);
+  border-color: #bfdbfe;
+  color: var(--blue);
+}
+
+.choice-chip-active {
+  border-color: var(--blue);
+  background: #eff6ff;
+  color: var(--blue);
+}
+
+.choice-chip-add {
+  border-style: dashed;
+}
+
+.profile-success {
+  margin: 0;
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.profile-preview-card {
+  position: sticky;
+  top: 90px;
+  display: grid;
+  gap: 18px;
+}
+
+.profile-preview-block {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.profile-preview-block span,
+.profile-preview-block small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.profile-preview-block strong {
+  font-size: 20px;
+}
+
+.stack-list strong {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
 .search-filter-bar {
   display: flex;
   align-items: center;
@@ -581,13 +746,64 @@ h4 {
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-.job-card:hover {
+.job-card:hover,
+.activity-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 18px 42px rgba(17, 24, 39, 0.1);
 }
 
-.job-card h3 {
+.job-card h3,
+.activity-card h3 {
   margin-bottom: 8px;
+}
+
+.activity-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: #fff;
+}
+
+.activity-toolbar strong,
+.activity-toolbar span {
+  display: block;
+}
+
+.activity-toolbar span {
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.activity-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.activity-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-card-header small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .meta-row {
@@ -975,13 +1191,15 @@ th {
   .recommendation-layout,
   .split-tool-layout,
   .auth-layout,
+  .profile-editor-layout,
   .admin-layout {
     grid-template-columns: 1fr;
   }
 
   .stat-grid,
   .admin-stat-grid,
-  .bento-grid {
+  .bento-grid,
+  .activity-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -990,6 +1208,7 @@ th {
   }
 
   .ai-panel,
+  .profile-preview-card,
   .admin-sidebar {
     position: static;
     height: auto;
@@ -997,6 +1216,11 @@ th {
 
   .admin-sidebar nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .inline-add-row,
+  .inline-add-row-wide {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1018,6 +1242,7 @@ th {
   .stat-grid,
   .admin-stat-grid,
   .bento-grid,
+  .activity-grid,
   .readiness,
   .question-grid,
   .preview-stats {
@@ -1030,6 +1255,7 @@ th {
 
   .profile-progress,
   .search-filter-bar,
+  .activity-toolbar,
   .job-card-header,
   .result-header,
   .auth-actions {

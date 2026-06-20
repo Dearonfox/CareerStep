@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 
-export type PageKey = 'home' | 'dashboard' | 'jobs' | 'recommendations' | 'ai-tools' | 'admin';
+export type PageKey = 'home' | 'dashboard' | 'jobs' | 'activities' | 'admin';
 
 export type UserRole = 'USER' | 'ADMIN';
 

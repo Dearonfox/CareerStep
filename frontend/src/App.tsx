@@ -1,8 +1,11 @@
 import {
+  Activity,
   Bot,
   BriefcaseBusiness,
+  CalendarDays,
   ClipboardList,
   Copy,
+  ExternalLink,
   FileText,
   LayoutDashboard,
   LogIn,
@@ -13,7 +16,7 @@ import {
   Trash2,
   UserPlus,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import {
   bootstrapFirstAdmin,
@@ -23,6 +26,7 @@ import {
   type AdminUser,
 } from './api/admin';
 import { logout as requestLogout } from './api/auth';
+import { getMyProfile, saveMyProfile } from './api/profile';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
 import { Button } from './components/Button';
@@ -42,12 +46,70 @@ const navItems = [
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '마이페이지' },
   { to: '/jobs', label: '채용공고' },
-  { to: '/recommendations', label: 'AI 추천' },
-  { to: '/ai-tools', label: '자소서/면접 AI' },
+  { to: '/activities', label: '대외활동' },
   { to: '/admin', label: '관리자' },
 ];
 
 const filterSkills = ['전체', 'React', 'Spring Boot', 'LLM API', 'AWS'];
+
+const emptyProfileForm = {
+  desiredRoles: [] as string[],
+  skills: [] as string[],
+  certificates: [] as string[],
+  languages: [] as string[],
+  projects: [] as string[],
+};
+
+const roleOptions = ['프론트엔드 개발자', '백엔드 개발자', '풀스택 개발자', 'AI/데이터', 'DevOps', '기획/PM'];
+const skillOptions = ['React', 'TypeScript', 'JavaScript', 'Spring Boot', 'Node.js', 'Python', 'MySQL', 'PostgreSQL', 'AWS', 'Docker', 'Git'];
+const projectTypeOptions = ['개인 프로젝트', '팀 프로젝트', '기업·인턴 프로젝트', '공모전·해커톤', '오픈소스 기여'];
+const responsibilityOptions = ['프론트엔드 개발', '백엔드 개발', '풀스택 개발', 'AI 모델·데이터 처리', '기획·프로젝트 관리', 'UI/UX 설계'];
+const languageTestOptions = ['TOEIC', 'TOEIC Speaking', 'OPIc', 'IELTS', 'JLPT', 'HSK'];
+
+function splitCommaValues(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function stripProfilePrefix(value: string, prefix: string) {
+  return value.startsWith(prefix) ? value.slice(prefix.length).trim() : value;
+}
+
+function pickPrefixedValues(values: string[], prefix: string) {
+  return values.filter((value) => value.startsWith(prefix)).map((value) => stripProfilePrefix(value, prefix));
+}
+
+const activities = [
+  {
+    id: 1,
+    title: '오픈소스 컨트리뷰션 챌린지',
+    organizer: '한국소프트웨어산업협회',
+    period: '2026.07.01 - 2026.08.30',
+    category: '개발',
+    tags: ['GitHub', 'React', '협업'],
+    status: '추천 로직 연동 예정',
+  },
+  {
+    id: 2,
+    title: 'AI 서비스 기획 해커톤',
+    organizer: 'Seoul Tech Hub',
+    period: '2026.07.12 - 2026.07.14',
+    category: '해커톤',
+    tags: ['AI', '서비스기획', '프로토타입'],
+    status: '추천 로직 연동 예정',
+  },
+  {
+    id: 3,
+    title: '프론트엔드 포트폴리오 스터디',
+    organizer: 'CareerStep Community',
+    period: '상시 모집',
+    category: '스터디',
+    tags: ['TypeScript', '포트폴리오', '면접'],
+    status: '추천 로직 연동 예정',
+  },
+];
 
 function Header() {
   const navigate = useNavigate();
@@ -115,8 +177,8 @@ function HomePage() {
           분석합니다. 이제 공고를 찾는 일이 아니라 준비 상태를 관리하세요.
         </p>
         <div className="hero-actions">
-          <Button variant="ai" icon={Sparkles} onClick={() => navigate('/recommendations')}>
-            AI 추천 시작하기
+          <Button variant="ai" icon={Sparkles} onClick={() => navigate('/activities')}>
+            대외활동 보러가기
           </Button>
           <Button variant="secondary" icon={BriefcaseBusiness} onClick={() => navigate('/jobs')}>
             공고 둘러보기
@@ -214,6 +276,482 @@ function DashboardPage() {
   );
 }
 
+function ProfileSpecPage() {
+  const [form, setForm] = useState(emptyProfileForm);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [certificateInput, setCertificateInput] = useState('');
+  const [languageDraft, setLanguageDraft] = useState({
+    testName: languageTestOptions[0],
+    score: '',
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfile() {
+      setIsLoading(true);
+      setError('');
+      try {
+        const profile = await getMyProfile();
+        if (!isMounted) {
+          return;
+        }
+        if (profile) {
+          const storedCertificates = profile.certificates ?? [];
+          const storedProjects = profile.projects ?? [];
+          setForm({
+            desiredRoles: splitCommaValues(profile.desired_role),
+            skills: profile.skills,
+            certificates: pickPrefixedValues(storedCertificates, '자격증:'),
+            languages: pickPrefixedValues(storedCertificates, '어학:'),
+            projects: storedProjects.map((value) =>
+              stripProfilePrefix(stripProfilePrefix(value, '프로젝트 형태:'), '담당 경험:'),
+            ),
+          });
+        }
+      } catch {
+        if (isMounted) {
+          setError('프로필 정보를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  function toggleSelection(field: 'desiredRoles' | 'skills' | 'projects', value: string) {
+    setForm((current) => {
+      const selectedValues = current[field];
+      const nextValues = selectedValues.includes(value)
+        ? selectedValues.filter((item) => item !== value)
+        : [...selectedValues, value];
+      return { ...current, [field]: nextValues };
+    });
+    setMessage('');
+  }
+
+  function addCustomValue(field: 'desiredRoles' | 'skills' | 'projects') {
+    const label = field === 'desiredRoles' ? '직군' : field === 'skills' ? '기술' : '개발 경험';
+    const value = window.prompt(`추가할 ${label}을 입력하세요.`);
+    const trimmedValue = value?.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    setForm((current) => {
+      if (current[field].includes(trimmedValue)) {
+        return current;
+      }
+      return { ...current, [field]: [...current[field], trimmedValue] };
+    });
+    setMessage('');
+  }
+
+  function addCertificate() {
+    const trimmedValue = certificateInput.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    setForm((current) => {
+      if (current.certificates.includes(trimmedValue)) {
+        return current;
+      }
+      return { ...current, certificates: [...current.certificates, trimmedValue] };
+    });
+    setCertificateInput('');
+    setMessage('');
+  }
+
+  function removeCertificate(value: string) {
+    setForm((current) => ({
+      ...current,
+      certificates: current.certificates.filter((certificate) => certificate !== value),
+    }));
+    setMessage('');
+  }
+
+  function addLanguage() {
+    const normalizedTestName = languageDraft.testName.trim();
+    const normalizedScore = languageDraft.score.trim();
+    if (!normalizedTestName || !normalizedScore) {
+      return;
+    }
+
+    const language = `${normalizedTestName} ${normalizedScore}`;
+    setForm((current) => {
+      if (current.languages.includes(language)) {
+        return current;
+      }
+      return { ...current, languages: [...current.languages, language] };
+    });
+    setLanguageDraft((current) => ({ ...current, score: '' }));
+    setMessage('');
+  }
+
+  function removeLanguage(value: string) {
+    setForm((current) => ({
+      ...current,
+      languages: current.languages.filter((language) => language !== value),
+    }));
+    setMessage('');
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const certificatesForSave = [
+        ...form.certificates.map((certificate) => `자격증: ${certificate}`),
+        ...form.languages.map((language) => `어학: ${language}`),
+      ];
+      const projectsForSave = form.projects.map((project) => {
+        if (projectTypeOptions.includes(project)) {
+          return `프로젝트 형태: ${project}`;
+        }
+        if (responsibilityOptions.includes(project)) {
+          return `담당 경험: ${project}`;
+        }
+        return project;
+      });
+      const savedProfile = await saveMyProfile({
+        desired_role: form.desiredRoles.join(', '),
+        skills: form.skills,
+        certificates: certificatesForSave,
+        projects: projectsForSave,
+      });
+      const savedCertificates = savedProfile.certificates ?? [];
+      const savedProjects = savedProfile.projects ?? [];
+      setForm({
+        desiredRoles: splitCommaValues(savedProfile.desired_role),
+        skills: savedProfile.skills,
+        certificates: pickPrefixedValues(savedCertificates, '자격증:'),
+        languages: pickPrefixedValues(savedCertificates, '어학:'),
+        projects: savedProjects.map((value) =>
+          stripProfilePrefix(stripProfilePrefix(value, '프로젝트 형태:'), '담당 경험:'),
+        ),
+      });
+      setMessage('스펙 정보가 저장되었습니다.');
+    } catch {
+      setError('스펙 정보를 저장하지 못했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const completedFields = [
+    form.desiredRoles.length,
+    form.skills.length,
+    form.certificates.length,
+    form.languages.length,
+    form.projects.length,
+  ].filter(Boolean).length;
+  const completionRate = Math.round((completedFields / 5) * 100);
+  const desiredRoles = form.desiredRoles;
+  const skills = form.skills;
+  const certificates = form.certificates;
+  const languages = form.languages;
+  const projects = form.projects;
+  const projectTypes = projects.filter((project) => projectTypeOptions.includes(project));
+  const responsibilities = projects.filter((project) => responsibilityOptions.includes(project));
+  const customExperiences = projects.filter(
+    (project) => !projectTypeOptions.includes(project) && !responsibilityOptions.includes(project),
+  );
+
+  return (
+    <main className="page-shell">
+      <div className="page-title">
+        <p className="eyebrow">My Career Profile</p>
+        <h1>내 스펙 관리</h1>
+        <p>추천에 사용할 기본 스펙을 직접 입력하고 저장하세요.</p>
+      </div>
+
+      <section className="stat-grid">
+        <article className="stat-card stat-card-blue">
+          <div className="stat-icon"><LayoutDashboard size={20} /></div>
+          <span>프로필 완성도</span>
+          <strong>{completionRate}%</strong>
+        </article>
+        <article className="stat-card stat-card-purple">
+          <div className="stat-icon"><Sparkles size={20} /></div>
+          <span>기술 키워드</span>
+          <strong>{skills.length}</strong>
+        </article>
+        <article className="stat-card stat-card-green">
+          <div className="stat-icon"><FileText size={20} /></div>
+          <span>자격/어학</span>
+          <strong>{certificates.length + languages.length}</strong>
+        </article>
+        <article className="stat-card stat-card-orange">
+          <div className="stat-icon"><BriefcaseBusiness size={20} /></div>
+          <span>개발 경험</span>
+          <strong>{projects.length}</strong>
+        </article>
+      </section>
+
+      <section className="profile-editor-layout">
+        <form className="profile-form-card" onSubmit={handleSubmit}>
+          <div className="section-heading">
+            <div>
+              <h2>추천용 기본 스펙</h2>
+              <p>쉼표 또는 줄바꿈으로 여러 항목을 입력할 수 있습니다.</p>
+            </div>
+            <Button variant="primary" icon={FileText} disabled={isLoading || isSaving}>
+              {isSaving ? '저장 중' : '저장'}
+            </Button>
+          </div>
+
+          {error ? <p className="auth-error">{error}</p> : null}
+          {message ? <p className="profile-success">{message}</p> : null}
+
+          <section className="profile-choice-section">
+            <div>
+              <h3>원하는 직군</h3>
+              <p>관심 있는 직군을 모두 선택하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {roleOptions.map((role) => (
+                <button
+                  type="button"
+                  key={role}
+                  className={`choice-chip ${desiredRoles.includes(role) ? 'choice-chip-active' : ''}`}
+                  onClick={() => toggleSelection('desiredRoles', role)}
+                  disabled={isLoading}
+                >
+                  {role}
+                </button>
+              ))}
+              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('desiredRoles')}>
+                + 직접 추가
+              </button>
+            </div>
+          </section>
+
+          <section className="profile-choice-section">
+            <div>
+              <h3>기술</h3>
+              <p>해당하는 기술을 모두 선택하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {skillOptions.map((skill) => (
+                <button
+                  type="button"
+                  key={skill}
+                  className={`choice-chip ${form.skills.includes(skill) ? 'choice-chip-active' : ''}`}
+                  onClick={() => toggleSelection('skills', skill)}
+                  disabled={isLoading}
+                >
+                  {skill}
+                </button>
+              ))}
+              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('skills')}>
+                + 직접 추가
+              </button>
+            </div>
+          </section>
+
+          <section className="profile-choice-section">
+            <div>
+              <h3>자격증</h3>
+              <p>선택지 없이 보유한 자격증명을 직접 입력하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {certificates.map((certificate) => (
+                <button
+                  type="button"
+                  key={certificate}
+                  className="choice-chip choice-chip-active"
+                  onClick={() => removeCertificate(certificate)}
+                  disabled={isLoading}
+                >
+                  {certificate}
+                </button>
+              ))}
+            </div>
+            <div className="inline-add-row">
+              <input
+                type="text"
+                value={certificateInput}
+                onChange={(event) => setCertificateInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addCertificate();
+                  }
+                }}
+                placeholder="자격증명을 입력하세요"
+                disabled={isLoading}
+              />
+              <button type="button" className="choice-chip choice-chip-add" onClick={addCertificate} disabled={isLoading}>
+                추가
+              </button>
+            </div>
+          </section>
+
+          <section className="profile-choice-section">
+            <div>
+              <h3>어학</h3>
+              <p>시험 항목을 고르고 점수나 등급을 입력하세요.</p>
+            </div>
+            <div className="choice-grid">
+              {languages.map((language) => (
+                <button
+                  type="button"
+                  key={language}
+                  className="choice-chip choice-chip-active"
+                  onClick={() => removeLanguage(language)}
+                  disabled={isLoading}
+                >
+                  {language}
+                </button>
+              ))}
+            </div>
+            <div className="inline-add-row inline-add-row-wide">
+              <select
+                value={languageDraft.testName}
+                onChange={(event) => setLanguageDraft((current) => ({ ...current, testName: event.target.value }))}
+                disabled={isLoading}
+              >
+                {languageTestOptions.map((testName) => (
+                  <option key={testName} value={testName}>
+                    {testName}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={languageDraft.score}
+                onChange={(event) => setLanguageDraft((current) => ({ ...current, score: event.target.value }))}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addLanguage();
+                  }
+                }}
+                placeholder="점수/등급 예: 850, IH, N2"
+                disabled={isLoading}
+              />
+              <button type="button" className="choice-chip choice-chip-add" onClick={addLanguage} disabled={isLoading}>
+                추가
+              </button>
+            </div>
+          </section>
+
+          <section className="profile-choice-section">
+            <div>
+              <h3>개발 경험</h3>
+              <p>추천 로직에서 활용하기 쉽게 프로젝트 형태와 담당 경험을 나눠 선택하세요.</p>
+            </div>
+            <div className="profile-subsection">
+              <strong>프로젝트 형태</strong>
+              <div className="choice-grid">
+                {projectTypeOptions.map((project) => (
+                  <button
+                    type="button"
+                    key={project}
+                    className={`choice-chip ${projects.includes(project) ? 'choice-chip-active' : ''}`}
+                    onClick={() => toggleSelection('projects', project)}
+                    disabled={isLoading}
+                  >
+                    {project}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="profile-subsection">
+              <strong>담당 경험</strong>
+              <div className="choice-grid">
+                {responsibilityOptions.map((project) => (
+                  <button
+                    type="button"
+                    key={project}
+                    className={`choice-chip ${projects.includes(project) ? 'choice-chip-active' : ''}`}
+                    onClick={() => toggleSelection('projects', project)}
+                    disabled={isLoading}
+                  >
+                    {project}
+                  </button>
+                ))}
+                <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('projects')}>
+                  + 직접 추가
+                </button>
+              </div>
+            </div>
+          </section>
+        </form>
+
+        <aside className="profile-preview-card">
+          <p className="eyebrow">Preview</p>
+          <h2>추천에 사용될 정보</h2>
+          <div className="profile-preview-block">
+            <span>원하는 직군</span>
+            <div className="tag-row">
+              {desiredRoles.length ? desiredRoles.map((role) => (
+                <SkillTag key={role} label={role} tone="ai" />
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+          <div className="profile-preview-block">
+            <span>기술</span>
+            <div className="tag-row">
+              {skills.length ? skills.map((skill) => (
+                <SkillTag key={skill} label={skill} tone="ai" />
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+          <div className="profile-preview-block">
+            <span>자격증</span>
+            <div className="tag-row">
+              {certificates.length ? certificates.map((certificate) => (
+                <SkillTag key={certificate} label={certificate} tone="success" />
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+          <div className="profile-preview-block">
+            <span>어학</span>
+            <div className="tag-row">
+              {languages.length ? languages.map((language) => (
+                <SkillTag key={language} label={language} tone="success" />
+              )) : <small>미입력</small>}
+            </div>
+          </div>
+          <div className="profile-preview-block">
+            <span>개발 경험</span>
+            <div className="stack-list">
+              {projectTypes.length ? <strong>프로젝트 형태</strong> : null}
+              {projectTypes.map((project) => (
+                <span key={project}>{project}</span>
+              ))}
+              {responsibilities.length ? <strong>담당 경험</strong> : null}
+              {responsibilities.map((project) => (
+                <span key={project}>{project}</span>
+              ))}
+              {customExperiences.length ? <strong>직접 추가</strong> : null}
+              {customExperiences.map((project) => (
+                <span key={project}>{project}</span>
+              ))}
+              {!projects.length ? <small>미입력</small> : null}
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
 function JobsPage({ compact = false }: { compact?: boolean }) {
   const {
     jobs,
@@ -257,6 +795,55 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function ActivitiesPage() {
+  return (
+    <main className="page-shell">
+      <div className="page-title">
+        <p className="eyebrow">External Activities</p>
+        <h1>대외활동</h1>
+        <p>추천 로직이 완성되면 사용자 프로필과 관심 직무에 맞춰 대외활동을 자동 추천합니다.</p>
+      </div>
+
+      <section className="activity-toolbar">
+        <div>
+          <strong>추천 엔진 연동 대기</strong>
+          <span>현재는 화면 구조와 카드 UI를 먼저 반영한 상태입니다.</span>
+        </div>
+        <Button variant="secondary" icon={Activity} disabled>
+          추천 준비중
+        </Button>
+      </section>
+
+      <section className="activity-grid">
+        {activities.map((activity) => (
+          <article className="activity-card" key={activity.id}>
+            <div className="activity-card-header">
+              <span className="status-pill">{activity.category}</span>
+              <small>{activity.status}</small>
+            </div>
+            <h3>{activity.title}</h3>
+            <div className="meta-row">
+              <span>
+                <ExternalLink size={15} />
+                {activity.organizer}
+              </span>
+              <span>
+                <CalendarDays size={15} />
+                {activity.period}
+              </span>
+            </div>
+            <div className="tag-row">
+              {activity.tags.map((tag) => (
+                <SkillTag key={tag} label={tag} tone="ai" />
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
+    </main>
   );
 }
 
@@ -608,27 +1195,12 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <ProfileSpecPage />
             </ProtectedRoute>
           }
         />
         <Route path="/jobs" element={<JobsPage />} />
-        <Route
-          path="/recommendations"
-          element={
-            <ProtectedRoute>
-              <RecommendationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/ai-tools"
-          element={
-            <ProtectedRoute>
-              <AiToolsPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/activities" element={<ActivitiesPage />} />
         <Route
           path="/admin"
           element={
