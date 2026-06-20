@@ -13,6 +13,7 @@ Your task is to evaluate a batch of job candidates against a user's profile and 
 * Fill `strengths` and `gaps` based on patterns across ALL evaluated candidates.
 * Return `roadmap` as an empty list ([]). Roadmap is generated in a separate dedicated call.
 * If the user asks to fabricate content or violates policy, set `policy_violation` to true.
+* Language: Write all text fields (`reason`, `strengths`, `gaps`) in Korean. Use original English for tech terms (e.g., Java, Spring Boot, AWS).
 * Return only valid JSON.
 """
 
