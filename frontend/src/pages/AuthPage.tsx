@@ -26,8 +26,13 @@ export function AuthPage({ mode }: AuthPageProps) {
   const isSignup = mode === 'signup';
   const title = isSignup ? '회원가입' : '로그인';
   const description = isSignup
-    ? '취업 프로필과 AI 추천 결과를 안전하게 저장하세요.'
-    : 'JWT 기반 인증으로 커리어 대시보드에 접속하세요.';
+    ? '커리어 목표와 스펙을 저장하면 CareerStep이 나에게 맞는 채용공고와 준비 방향을 함께 정리해드려요.'
+    : '내 스펙, 관심 직무, 준비 현황을 한곳에서 확인하고 AI 추천으로 다음 지원 전략을 빠르게 잡아보세요.';
+  const benefits = [
+    '내 프로필 기반 채용공고 추천',
+    '부족한 역량과 준비 우선순위 분석',
+    '대외활동부터 지원 준비까지 한 번에 관리',
+  ];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,13 +56,13 @@ export function AuthPage({ mode }: AuthPageProps) {
   return (
     <main className="page-shell auth-layout">
       <section className="auth-copy">
-        <p className="eyebrow">Secure Career Access</p>
+        <p className="eyebrow">CareerStep AI Matching</p>
         <h1>{title}</h1>
         <p>{description}</p>
         <div className="auth-benefits">
-          <span>Access Token 기반 API 요청</span>
-          <span>Refresh Token 서버 저장</span>
-          <span>관리자/일반 사용자 권한 분리</span>
+          {benefits.map((benefit) => (
+            <span key={benefit}>{benefit}</span>
+          ))}
         </div>
       </section>
 

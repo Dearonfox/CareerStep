@@ -42,12 +42,12 @@ import { AuthPage } from './pages/AuthPage';
 import { useCareerStore } from './store/useCareerStore';
 import { useUserStore } from './store/useUserStore';
 import type { UserRole } from './types';
-const navItems = [
+const navItems: Array<{ to: string; label: string; requiredRole?: UserRole }> = [
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '마이페이지' },
   { to: '/jobs', label: '채용공고' },
   { to: '/activities', label: '대외활동' },
-  { to: '/admin', label: '관리자' },
+  { to: '/admin', label: '관리자', requiredRole: 'ADMIN' },
 ];
 
 const filterSkills = ['전체', 'React', 'Spring Boot', 'LLM API', 'AWS'];
@@ -114,6 +114,7 @@ const activities = [
 function Header() {
   const navigate = useNavigate();
   const { user, refreshToken, isAuthenticated, clearAuth } = useUserStore();
+  const visibleNavItems = navItems.filter((item) => !item.requiredRole || user?.role === item.requiredRole);
 
   async function handleLogout() {
     if (refreshToken) {
@@ -134,7 +135,7 @@ function Header() {
         <span>CareerStep</span>
       </NavLink>
       <nav className="topnav">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'}>
             {item.label}
           </NavLink>
@@ -1204,7 +1205,7 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="ADMIN">
               <UserAdminPage />
             </ProtectedRoute>
           }
