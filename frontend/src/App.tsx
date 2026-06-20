@@ -60,7 +60,34 @@ const emptyProfileForm = {
   projects: [] as string[],
 };
 
-const roleOptions = ['프론트엔드 개발자', '백엔드 개발자', '풀스택 개발자', 'AI/데이터', 'DevOps', '기획/PM'];
+const roleOptions = [
+  '백엔드개발자',
+  '프론트엔드개발자',
+  '웹개발자',
+  '앱개발자',
+  '시스템엔지니어',
+  '네트워크엔지니어',
+  'DBA',
+  '데이터엔지니어',
+  '데이터사이언티스트',
+  '보안엔지니어',
+  '소프트웨어개발자',
+  '게임개발자',
+  '하드웨어개발자',
+  'AI/ML엔지니어',
+  '블록체인개발자',
+  '클라우드엔지니어',
+  '웹퍼블리셔',
+  'IT컨설팅',
+  'QA',
+  'AI/ML연구원',
+  '데이터분석가',
+  '데이터라벨러',
+  '프롬프트엔지니어',
+  'AI보안전문가',
+  'MLOps엔지니어',
+  'AI서비스개발자',
+];
 const skillOptions = ['React', 'TypeScript', 'JavaScript', 'Spring Boot', 'Node.js', 'Python', 'MySQL', 'PostgreSQL', 'AWS', 'Docker', 'Git'];
 const projectTypeOptions = ['개인 프로젝트', '팀 프로젝트', '기업·인턴 프로젝트', '공모전·해커톤', '오픈소스 기여'];
 const responsibilityOptions = ['프론트엔드 개발', '백엔드 개발', '풀스택 개발', 'AI 모델·데이터 처리', '기획·프로젝트 관리', 'UI/UX 설계'];
@@ -535,9 +562,6 @@ function ProfileSpecPage() {
                   {role}
                 </button>
               ))}
-              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('desiredRoles')}>
-                + 직접 추가
-              </button>
             </div>
           </section>
 
@@ -800,7 +824,7 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
       {isLoadingJobs ? (
         <div className="loading-panel">
           <span className="loading-dot" />
-          <p>MongoDB에서 채용공고를 불러오는 중입니다.</p>
+          <p>채용공고를 불러오는 중입니다.</p>
         </div>
       ) : null}
       {!isLoadingJobs && jobsError ? <p className="auth-error">{jobsError}</p> : null}
