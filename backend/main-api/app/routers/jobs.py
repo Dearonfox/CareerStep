@@ -66,13 +66,7 @@ def list_mongo_jobs(limit: int = 60) -> list[JobRead]:
     try:
         client.admin.command("ping")
         collection = client["careerstep"]["job_raw"]
-        query = {
-            "$or": [
-                {"status": {"$in": ["summarized", "detailed", "routed", "pending"]}},
-                {"status": {"$exists": False}},
-            ]
-        }
-        cursor = collection.find(query).sort(
+        cursor = collection.find({}).sort(
             [("scraped_at", DESCENDING), ("inserted_at", DESCENDING), ("_id", DESCENDING)]
         ).limit(limit)
         return [serialize_mongo_job(job) for job in cursor]
