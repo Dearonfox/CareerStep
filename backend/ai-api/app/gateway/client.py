@@ -83,6 +83,17 @@ class GPTGateway:
                 # 실제 토큰 사용량으로 업데이트
                 await self.rate_limiter.update_tokens(estimated_tokens, prompt_tokens + completion_tokens)
                 
+                # 터미널 토큰 로깅 추가
+                if usage:
+                    cached_tok = 0
+                    if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details:
+                        cached_tok = getattr(usage.prompt_tokens_details, "cached_tokens", 0)
+                    elif hasattr(usage, "input_tokens_details") and usage.input_tokens_details:
+                        cached_tok = getattr(usage.input_tokens_details, "cached_tokens", 0)
+                        
+                    cache_msg = f" (캐시됨: {cached_tok})" if cached_tok > 0 else ""
+                    logger.info(f"[{model}] 📊 토큰 사용량: 입력 {prompt_tokens}{cache_msg} + 출력 {completion_tokens} = 총 {prompt_tokens + completion_tokens} tokens")
+                
                 # 로그 및 사용량 기록 (비동기 처리)
                 await write_ai_log(endpoint, payload, result)
                 await track_usage(
