@@ -17,3 +17,11 @@ def delete_refresh_token(refresh_token: str) -> None:
         redis_client.delete(f"refresh:{refresh_token}")
     except redis.RedisError:
         pass
+
+
+def get_refresh_token_user_id(refresh_token: str) -> int | None:
+    try:
+        user_id = redis_client.get(f"refresh:{refresh_token}")
+    except redis.RedisError:
+        return None
+    return int(user_id) if user_id is not None else None

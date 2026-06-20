@@ -41,6 +41,10 @@ class TokenPair(BaseModel):
     user: UserRead
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class ProfileUpsert(BaseModel):
     desired_role: str = Field(default="", max_length=100)
     skills: list[str] = []
