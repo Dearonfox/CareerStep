@@ -132,6 +132,19 @@ class MongoDBClient:
             print(f"[오류] bulk_write 실행 중 예외 발생: {e}")
             return 0
 
+    def delete_pending_jobs(self) -> int:
+        """
+        수집 중단 시 불완전하게 적재된 pending 상태의 도큐먼트를 삭제(롤백)합니다.
+        """
+        if self.collection is None:
+            return 0
+        try:
+            result = self.collection.delete_many({"status": "pending"})
+            return result.deleted_count
+        except Exception as e:
+            print(f"[오류] pending 도큐먼트 롤백 삭제 중 예외 발생: {e}")
+            return 0
+
     def close(self):
         if self.client:
             self.client.close()

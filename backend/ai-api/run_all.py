@@ -3,9 +3,10 @@ from app.core.config import settings
 from app.core.mongo import mongo
 from app.core.logging import init_log_db
 from app.services.summarizer import JobSummarizer
+from app.services.router import process_routing_for_job
 
 async def main():
-    print("=== 전체 공고 요약 자동화 스크립트 시작 ===")
+    print("=== 전체 공고 요약 및 라우팅 자동화 스크립트 시작 ===")
     
     await init_log_db()
     await mongo.connect(settings.mongodb_uri)
@@ -49,6 +50,44 @@ async def main():
     print(f"총 처리 시도: {total_processed}건")
     print(f"총 성공: {total_success}건")
     print(f"총 실패: {total_failed}건")
+
+    print("\n=== 라우팅 파이프라인 시작 ===")
+    route_batch_size = 50
+    total_routed = 0
+    total_route_failed = 0
+    
+    while True:
+        remaining_route = await mongo.job_raw.count_documents({"status": "summarized"})
+        if remaining_route == 0:
+            print("\n라우팅할 공고가 더 이상 없습니다! 모두 완료되었습니다.")
+            break
+            
+        print(f"\n[진행 상황] 남은 라우팅 공고: {remaining_route}건 -> {route_batch_size}건 배치 처리 시작...")
+        
+        cursor = mongo.job_raw.find({"status": "summarized"}).limit(route_batch_size)
+        jobs = await cursor.to_list(length=route_batch_size)
+        
+        if not jobs:
+            break
+            
+        for job in jobs:
+            try:
+                routed_job = process_routing_for_job(job)
+                await mongo.job_raw.update_one(
+                    {"_id": job["_id"]},
+                    {"$set": {
+                        "summary": routed_job["summary"],
+                        "status": "routed"
+                    }}
+                )
+                total_routed += 1
+            except Exception as e:
+                total_route_failed += 1
+                print(f"Error routing job {job.get('_id')}: {e}")
+                
+    print("\n=== 최종 라우팅 결과 요약 ===")
+    print(f"총 라우팅 성공: {total_routed}건")
+    print(f"총 라우팅 실패: {total_route_failed}건")
     
     await mongo.close()
     print("=== 스크립트 종료 ===")

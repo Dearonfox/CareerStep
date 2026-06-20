@@ -68,6 +68,23 @@ ALIAS_DICT = {
     
     "텐서플로우": "tensorflow",
     "파이토치": "pytorch",
+    
+    # 추가된 정규화 목록 (Next.js, CAD 등)
+    "next.js": "nextjs",
+    "넥스트": "nextjs",
+    
+    "nest.js": "nestjs",
+    "express.js": "express",
+    
+    "elk stack": "elk",
+    "elkstack": "elk",
+    
+    "auto cad": "autocad",
+    "오토캐드": "autocad",
+    
+    "ms-sql": "mssql",
+    "spring framework": "spring",
+    "spring boot 3": "springboot",
 }
 
 def normalize_text(text: str) -> str:

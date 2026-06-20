@@ -63,30 +63,39 @@ def run_pipeline():
             # --- 2단계: 상세 페이지 마크다운 수집 & 업데이트 ---
             print("\n>>> 2단계: 채용 상세 요강 마크다운 변환 및 업데이트 시작...")
             total_jobs = len(unique_jobs)
-            for s_idx, job in enumerate(unique_jobs, 1):
-                job_id = job["job_id"]
-                company = job["company_name"]
-                
-                print(f"  [{s_idx}/{total_jobs}] '{company}' (ID: {job_id}) 상세 요강 수집 중...")
-                
-                # 상세 페이지 수집 및 마크다운 정제 (이미지 및 에러 케이스 자동 대응)
-                detail_data = fetch_job_detail(job_id)
-                
-                if detail_data.get("error_message"):
-                    print(f"    [경고] 상세 수집 실패: {detail_data['error_message']}")
-                elif detail_data.get("is_image_job"):
-                    print(f"    [이미지] 이미지 전용 공고 감지 (이미지 수: {len(detail_data['image_urls'])}개)")
-                else:
-                    print(f"    [텍스트] 마크다운 변환 성공 (텍스트 크기: {len(detail_data['detail_markdown']):,} 자)")
-                
-                # MongoDB에 개별 도큐먼트 업데이트
-                db_client.update_job_detail(job_id, detail_data)
-                
-                # 봇 탐지 방지 지연
-                if s_idx < total_jobs:
-                    time.sleep(CRAWL_DELAY)
+            
+            try:
+                for s_idx, job in enumerate(unique_jobs, 1):
+                    job_id = job["job_id"]
+                    company = job["company_name"]
                     
-            db_client.close()
+                    print(f"  [{s_idx}/{total_jobs}] '{company}' (ID: {job_id}) 상세 요강 수집 중...")
+                    
+                    # 상세 페이지 수집 및 마크다운 정제 (이미지 및 에러 케이스 자동 대응)
+                    detail_data = fetch_job_detail(job_id)
+                    
+                    if detail_data.get("error_message"):
+                        print(f"    [경고] 상세 수집 실패: {detail_data['error_message']}")
+                    elif detail_data.get("is_image_job"):
+                        print(f"    [이미지] 이미지 전용 공고 감지 (이미지 수: {len(detail_data['image_urls'])}개)")
+                    else:
+                        print(f"    [텍스트] 마크다운 변환 성공 (텍스트 크기: {len(detail_data['detail_markdown']):,} 자)")
+                    
+                    # MongoDB에 개별 도큐먼트 업데이트
+                    db_client.update_job_detail(job_id, detail_data)
+                    
+                    # 봇 탐지 방지 지연
+                    if s_idx < total_jobs:
+                        time.sleep(CRAWL_DELAY)
+            except (KeyboardInterrupt, Exception) as e:
+                print(f"\n[오류/중단] 수집이 강제 중단되었습니다. 사유: {e}")
+                raise
+            finally:
+                deleted_count = db_client.delete_pending_jobs()
+                if deleted_count > 0:
+                    print(f"\n[롤백] 중단으로 인해 상세 조회가 안 된 pending 데이터 {deleted_count}건을 깔끔하게 삭제(롤백)했습니다.")
+                db_client.close()
+                
         except Exception as e:
             print(f"[오류] MongoDB Atlas 적재 중 예외 발생: {e}")
     else:
