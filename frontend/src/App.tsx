@@ -19,7 +19,6 @@ import {
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import {
-  bootstrapFirstAdmin,
   deleteAdminUser,
   listAdminUsers,
   updateAdminUserRole,
@@ -1015,9 +1014,6 @@ function AdminPage() {
 
 function UserAdminPage() {
   const currentUser = useUserStore((state) => state.user);
-  const accessToken = useUserStore((state) => state.accessToken);
-  const refreshToken = useUserStore((state) => state.refreshToken);
-  const setAuth = useUserStore((state) => state.setAuth);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1042,7 +1038,7 @@ function UserAdminPage() {
     try {
       setUsers(await listAdminUsers());
     } catch {
-      setError('Failed to load users. Admin permission is required.');
+      setError('사용자 목록을 불러오지 못했습니다. 관리자 권한을 확인해주세요.');
     } finally {
       setIsLoading(false);
     }
@@ -1059,7 +1055,7 @@ function UserAdminPage() {
       const updatedUser = await updateAdminUserRole(userId, role);
       setUsers((items) => items.map((user) => (user.id === userId ? updatedUser : user)));
     } catch {
-      setError('Failed to update the user role.');
+      setError('사용자 권한을 변경하지 못했습니다.');
     } finally {
       setBusyUserId(null);
     }
@@ -1067,7 +1063,7 @@ function UserAdminPage() {
 
   async function handleDeleteUser(userId: number) {
     const target = users.find((user) => user.id === userId);
-    if (!target || !window.confirm(`Delete ${target.email}?`)) {
+    if (!target || !window.confirm(`${target.email} 계정을 삭제할까요?`)) {
       return;
     }
 
@@ -1077,36 +1073,9 @@ function UserAdminPage() {
       await deleteAdminUser(userId);
       setUsers((items) => items.filter((user) => user.id !== userId));
     } catch {
-      setError('Failed to delete the user.');
+      setError('사용자를 삭제하지 못했습니다.');
     } finally {
       setBusyUserId(null);
-    }
-  }
-
-  async function handleBootstrapAdmin() {
-    if (!currentUser || !accessToken || !refreshToken) {
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    try {
-      const adminUser = await bootstrapFirstAdmin();
-      setAuth(
-        {
-          id: adminUser.id,
-          email: adminUser.email,
-          name: adminUser.name,
-          role: adminUser.role,
-        },
-        accessToken,
-        refreshToken,
-      );
-      setUsers(await listAdminUsers());
-    } catch {
-      setError('Failed to claim admin access. An admin may already exist.');
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -1115,52 +1084,52 @@ function UserAdminPage() {
       <AdminSidebar />
       <section className="admin-main">
         <div className="page-title">
-          <p className="eyebrow">SaaS Admin</p>
-          <h1>User Management</h1>
+          <p className="eyebrow">CareerStep Admin</p>
+          <h1>사용자 관리</h1>
         </div>
         {currentUser?.role === 'ADMIN' ? (
           <>
             <div className="admin-stat-grid">
               <article className="admin-stat-card">
-                <span>Total users</span>
+                <span>전체 사용자</span>
                 <strong>{userStats.total}</strong>
-                <small>Live data</small>
+                <small>실시간 계정 현황</small>
               </article>
               <article className="admin-stat-card">
-                <span>Admins</span>
+                <span>관리자</span>
                 <strong>{userStats.admins}</strong>
-                <small>Role protected</small>
+                <small>권한 보호 계정</small>
               </article>
               <article className="admin-stat-card">
-                <span>Members</span>
+                <span>일반 사용자</span>
                 <strong>{userStats.members}</strong>
-                <small>Standard accounts</small>
+                <small>서비스 이용 계정</small>
               </article>
               <article className="admin-stat-card">
-                <span>Status</span>
-                <strong>{isLoading ? 'Sync' : 'Ready'}</strong>
-                <small>API connected</small>
+                <span>연동 상태</span>
+                <strong>{isLoading ? '동기화 중' : '정상'}</strong>
+                <small>관리 API 연결됨</small>
               </article>
             </div>
             <section className="admin-table-card">
               <div className="section-heading">
                 <div>
-                  <h2>Users</h2>
-                  <p>Review users, change roles, and remove accounts.</p>
+                  <h2>사용자 목록</h2>
+                  <p>가입한 사용자를 확인하고 관리자 권한을 관리할 수 있습니다.</p>
                 </div>
                 <Button variant="secondary" icon={RefreshCw} onClick={loadUsers} disabled={isLoading}>
-                  Refresh
+                  새로고침
                 </Button>
               </div>
               {error ? <p className="auth-error">{error}</p> : null}
               <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Created</th>
-                    <th>Actions</th>
+                    <th>이름</th>
+                    <th>이메일</th>
+                    <th>권한</th>
+                    <th>가입일</th>
+                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1175,8 +1144,8 @@ function UserAdminPage() {
                           disabled={busyUserId === user.id}
                           onChange={(event) => handleRoleChange(user.id, event.target.value as UserRole)}
                         >
-                          <option value="USER">USER</option>
-                          <option value="ADMIN">ADMIN</option>
+                          <option value="USER">일반 사용자</option>
+                          <option value="ADMIN">관리자</option>
                         </select>
                       </td>
                       <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
@@ -1188,7 +1157,7 @@ function UserAdminPage() {
                             disabled={busyUserId === user.id || user.role === 'ADMIN'}
                             onClick={() => handleRoleChange(user.id, 'ADMIN')}
                           >
-                            Admin
+                            관리자 지정
                           </Button>
                           <Button
                             variant="ghost"
@@ -1196,7 +1165,7 @@ function UserAdminPage() {
                             disabled={busyUserId === user.id || user.id === currentUser.id}
                             onClick={() => handleDeleteUser(user.id)}
                           >
-                            Delete
+                            삭제
                           </Button>
                         </div>
                       </td>
@@ -1204,7 +1173,7 @@ function UserAdminPage() {
                   ))}
                   {!isLoading && users.length === 0 ? (
                     <tr>
-                      <td colSpan={5}>No users found.</td>
+                      <td colSpan={5}>표시할 사용자가 없습니다.</td>
                     </tr>
                   ) : null}
                 </tbody>
@@ -1215,12 +1184,9 @@ function UserAdminPage() {
           <section className="admin-table-card">
             <div className="section-heading">
               <div>
-                <h2>Admin permission required</h2>
-                <p>Your account must have the ADMIN role to manage users. If this is the first account, claim the first admin role.</p>
+                <h2>관리자 권한이 필요합니다</h2>
+                <p>사용자 관리는 관리자 계정으로 로그인한 경우에만 접근할 수 있습니다.</p>
               </div>
-              <Button variant="primary" icon={ShieldCheck} onClick={handleBootstrapAdmin} disabled={isLoading}>
-                Claim first admin
-              </Button>
             </div>
             {error ? <p className="auth-error">{error}</p> : null}
           </section>

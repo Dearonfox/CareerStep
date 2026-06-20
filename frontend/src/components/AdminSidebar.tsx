@@ -11,26 +11,26 @@ import {
 } from 'lucide-react';
 
 const items = [
-  { label: 'Dashboard', icon: LayoutDashboard },
-  { label: 'Users', icon: Users },
-  { label: 'Jobs', icon: BriefcaseBusiness },
-  { label: 'Activities', icon: Activity },
-  { label: 'Skills', icon: Tags },
-  { label: 'AI Logs', icon: Sparkles },
-  { label: 'Violations', icon: ShieldAlert },
-  { label: 'Statistics', icon: BarChart3 },
-  { label: 'Settings', icon: Settings },
+  { label: '대시보드', icon: LayoutDashboard },
+  { label: '사용자', icon: Users },
+  { label: '채용공고', icon: BriefcaseBusiness },
+  { label: '대외활동', icon: Activity },
+  { label: '스킬', icon: Tags },
+  { label: 'AI 로그', icon: Sparkles },
+  { label: '신고/검수', icon: ShieldAlert },
+  { label: '통계', icon: BarChart3 },
+  { label: '설정', icon: Settings },
 ];
 
 export function AdminSidebar() {
   return (
     <aside className="admin-sidebar">
-      <div className="admin-brand">CareerStep Admin</div>
+      <div className="admin-brand">CareerStep 관리자</div>
       <nav>
-        {items.map((item, index) => {
+        {items.map((item) => {
           const Icon = item.icon;
           return (
-            <button key={item.label} className={index === 0 ? 'active' : ''}>
+            <button key={item.label} className={item.label === '사용자' ? 'active' : ''}>
               <Icon size={18} />
               <span>{item.label}</span>
             </button>
