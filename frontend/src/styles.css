@@ -757,6 +757,13 @@ h4 {
   margin-bottom: 8px;
 }
 
+.job-card h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .activity-toolbar {
   display: flex;
   align-items: center;
@@ -844,6 +851,14 @@ h4 {
 
 .reason {
   margin: 16px 0;
+}
+
+.job-card .reason {
+  display: -webkit-box;
+  min-height: 3.2em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .gap-row {

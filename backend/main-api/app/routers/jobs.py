@@ -1,4 +1,5 @@
 import json
+import re
 import zlib
 
 from fastapi import APIRouter, Depends
@@ -14,6 +15,17 @@ from app.models import Job, SavedJob, User
 from app.schemas import JobCreate, JobRead
 
 router = APIRouter()
+
+
+def compact_text(value: object, max_length: int = 180) -> str:
+    text_value = str(value or "")
+    text_value = re.sub(r"!\[[^\]]*]\([^)]*\)", " ", text_value)
+    text_value = re.sub(r"https?://\S+", " ", text_value)
+    text_value = re.sub(r"[#>*_`|\\]+", " ", text_value)
+    text_value = re.sub(r"\s+", " ", text_value).strip()
+    if len(text_value) <= max_length:
+        return text_value
+    return text_value[:max_length].rstrip() + "..."
 
 
 def serialize_job(job: Job) -> JobRead:
@@ -40,12 +52,9 @@ def serialize_mongo_job(job: dict) -> JobRead:
     if not skills and isinstance(primary_position.get("tech_stack"), list):
         skills = primary_position["tech_stack"]
 
-    description_parts = [
-        job.get("detail_markdown", ""),
-        primary_position.get("position_title", ""),
-        " ".join(primary_position.get("main_tasks", []) if isinstance(primary_position.get("main_tasks"), list) else []),
-        job.get("detail_url", ""),
-    ]
+    main_tasks = primary_position.get("main_tasks", []) if isinstance(primary_position.get("main_tasks"), list) else []
+    requirements = primary_position.get("requirements", []) if isinstance(primary_position.get("requirements"), list) else []
+    description = compact_text(" ".join([*main_tasks[:2], *requirements[:2]]) or job.get("detail_markdown", ""))
 
     return JobRead(
         id=job_id,
@@ -53,8 +62,8 @@ def serialize_mongo_job(job: dict) -> JobRead:
         company=str(job.get("company_name") or "회사명 없음"),
         location=str(primary_position.get("location") or meta.get("location") or "지역 미정"),
         employment_type=str(meta.get("employment_type") or primary_position.get("experience_level") or "고용형태 미정"),
-        skills=[str(skill) for skill in skills if str(skill).strip()][:8],
-        description="\n".join(part for part in description_parts if part).strip(),
+        skills=[str(skill) for skill in skills if str(skill).strip()][:5],
+        description=description or "MongoDB에 수집된 실제 채용공고입니다.",
     )
 
 
