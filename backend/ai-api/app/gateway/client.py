@@ -31,13 +31,16 @@ class GPTGateway:
         response_format: type[BaseModel],
         model: str = None,
         estimated_tokens: int = 1500,
+        max_output_tokens: int = None,
     ) -> dict:
         """
         OpenAI Chat Completions API를 JSON 모드로 호출합니다.
         동시성 및 Rate Limit을 제어하고, 일시적인 에러에 대해 재시도하며, 사용량과 비용을 기록합니다.
+        max_output_tokens: 지정하면 settings.max_tokens 대신 이 값을 출력 토큰 한도로 사용.
         """
         model = model or settings.openai_model
         max_retries = settings.openai_max_retries
+        output_tokens = max_output_tokens or settings.max_tokens
         
         last_exception = None
         start_time = time.time()
@@ -50,7 +53,7 @@ class GPTGateway:
                 response = await self.client.beta.chat.completions.parse(
                     model=model,
                     response_format=response_format,
-                    max_tokens=settings.max_tokens,
+                    max_tokens=output_tokens,
                     temperature=0.2,
                     messages=[
                         {"role": "system", "content": system_prompt},
