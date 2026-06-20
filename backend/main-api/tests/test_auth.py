@@ -83,3 +83,37 @@ def test_logout_deletes_refresh_token(client, auth_headers):
         "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
     )
     assert refresh_response.status_code == 401
+
+
+def test_change_password_updates_login_password(client, auth_headers):
+    headers, _ = auth_headers
+
+    response = client.patch(
+        "/api/v1/auth/password",
+        headers=headers,
+        json={"current_password": "password123", "new_password": "newpassword123"},
+    )
+    assert response.status_code == 200
+
+    old_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "tester@example.com", "password": "password123"},
+    )
+    assert old_login.status_code == 401
+
+    new_login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "tester@example.com", "password": "newpassword123"},
+    )
+    assert new_login.status_code == 200
+
+
+def test_change_password_rejects_wrong_current_password(client, auth_headers):
+    headers, _ = auth_headers
+
+    response = client.patch(
+        "/api/v1/auth/password",
+        headers=headers,
+        json={"current_password": "wrongpassword", "new_password": "newpassword123"},
+    )
+    assert response.status_code == 400

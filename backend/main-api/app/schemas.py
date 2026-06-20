@@ -45,6 +45,11 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class ProfileUpsert(BaseModel):
     desired_role: str = Field(default="", max_length=100)
     skills: list[str] = []

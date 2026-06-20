@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.redis import delete_refresh_token, get_refresh_token_user_id, store_refresh_token
 from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
+from app.deps import get_current_user
 from app.models import User
-from app.schemas import RefreshTokenRequest, TokenPair, UserCreate, UserLogin
+from app.schemas import PasswordChangeRequest, RefreshTokenRequest, TokenPair, UserCreate, UserLogin
 
 REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14
 
@@ -64,3 +65,18 @@ def refresh(payload: RefreshTokenRequest, db: Session = Depends(get_db)) -> Toke
 def logout(refresh_token: str) -> dict[str, str]:
     delete_refresh_token(refresh_token)
     return {"message": "logged out"}
+
+
+@router.patch("/password")
+def change_password(
+    payload: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"message": "password changed"}

@@ -32,3 +32,10 @@ export async function logout(refreshToken: string): Promise<void> {
     params: { refresh_token: refreshToken },
   });
 }
+
+export async function changePassword(payload: {
+  current_password: string;
+  new_password: string;
+}): Promise<void> {
+  await apiClient.patch('/auth/password', payload);
+}

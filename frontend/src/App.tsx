@@ -7,7 +7,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
-  LayoutDashboard,
+  LockKeyhole,
   LogIn,
   LogOut,
   RefreshCw,
@@ -15,6 +15,7 @@ import {
   Sparkles,
   Trash2,
   UserPlus,
+  UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
@@ -24,7 +25,7 @@ import {
   updateAdminUserRole,
   type AdminUser,
 } from './api/admin';
-import { logout as requestLogout } from './api/auth';
+import { changePassword, logout as requestLogout } from './api/auth';
 import { getMyProfile, saveMyProfile } from './api/profile';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
@@ -35,15 +36,14 @@ import { ProfileProgressCard } from './components/ProfileProgressCard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SearchFilterBar } from './components/SearchFilterBar';
 import { SkillTag } from './components/SkillTag';
-import { StatCard } from './components/StatCard';
-import { adminStats, dashboardSignals, stats } from './data/mockData';
+import { adminStats, dashboardSignals } from './data/mockData';
 import { AuthPage } from './pages/AuthPage';
 import { useCareerStore } from './store/useCareerStore';
 import { useUserStore } from './store/useUserStore';
 import type { UserRole } from './types';
 const navItems: Array<{ to: string; label: string; requiredRole?: UserRole }> = [
   { to: '/', label: '홈' },
-  { to: '/dashboard', label: '마이페이지' },
+  { to: '/dashboard', label: '내 스펙' },
   { to: '/jobs', label: '채용공고' },
   { to: '/activities', label: '대외활동' },
   { to: '/admin', label: '관리자', requiredRole: 'ADMIN' },
@@ -171,6 +171,9 @@ function Header() {
         {isAuthenticated ? (
           <>
             <span className="auth-user">{user?.name}</span>
+            <Button variant="secondary" icon={UserRound} onClick={() => navigate('/account')}>
+              내 정보
+            </Button>
             <Button variant="secondary" icon={LogOut} onClick={handleLogout}>
               로그아웃
             </Button>
@@ -187,6 +190,133 @@ function Header() {
         )}
       </div>
     </header>
+  );
+}
+
+function AccountPage() {
+  const user = useUserStore((state) => state.user);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage('');
+    setError('');
+
+    if (newPassword !== confirmPassword) {
+      setError('새 비밀번호가 서로 일치하지 않습니다.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setMessage('비밀번호가 변경되었습니다.');
+    } catch {
+      setError('현재 비밀번호를 확인해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="page-shell account-layout">
+      <section className="page-title">
+        <p className="eyebrow">My Account</p>
+        <h1>내 정보</h1>
+        <p>계정 정보를 확인하고 로그인 비밀번호를 변경할 수 있습니다.</p>
+      </section>
+
+      <section className="account-grid">
+        <article className="auth-card account-card">
+          <h2>계정 정보</h2>
+          <dl className="account-info">
+            <div>
+              <dt>이름</dt>
+              <dd>{user?.name ?? '-'}</dd>
+            </div>
+            <div>
+              <dt>이메일</dt>
+              <dd>{user?.email ?? '-'}</dd>
+            </div>
+            <div>
+              <dt>권한</dt>
+              <dd>{user?.role === 'ADMIN' ? '관리자' : '일반 사용자'}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article className="auth-card account-card">
+          <h2>비밀번호 변경</h2>
+          <form onSubmit={handlePasswordSubmit}>
+            <label className="auth-field">
+              현재 비밀번호
+              <span>
+                <LockKeyhole size={18} />
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  minLength={8}
+                  required
+                  autoComplete="current-password"
+                />
+              </span>
+            </label>
+
+            <label className="auth-field">
+              새 비밀번호
+              <span>
+                <LockKeyhole size={18} />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  minLength={8}
+                  maxLength={72}
+                  required
+                  autoComplete="new-password"
+                  placeholder="8자 이상"
+                />
+              </span>
+            </label>
+
+            <label className="auth-field">
+              새 비밀번호 확인
+              <span>
+                <LockKeyhole size={18} />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  minLength={8}
+                  maxLength={72}
+                  required
+                  autoComplete="new-password"
+                />
+              </span>
+            </label>
+
+            {error ? <p className="auth-error">{error}</p> : null}
+            {message ? <p className="profile-success">{message}</p> : null}
+
+            <Button variant="primary" className="auth-submit" disabled={isSubmitting}>
+              {isSubmitting ? '변경 중...' : '비밀번호 변경'}
+            </Button>
+          </form>
+        </article>
+      </section>
+    </main>
   );
 }
 
@@ -259,12 +389,6 @@ function DashboardPage() {
         <p className="eyebrow">My Career Board</p>
         <h1>나의 취업 현황판</h1>
       </div>
-
-      <section className="stat-grid">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} stat={stat} />
-        ))}
-      </section>
 
       <section className="bento-grid">
         <DashboardCard title="프로필 완성도" className="bento-wide">
@@ -479,14 +603,6 @@ function ProfileSpecPage() {
     }
   }
 
-  const completedFields = [
-    form.desiredRoles.length,
-    form.skills.length,
-    form.certificates.length,
-    form.languages.length,
-    form.projects.length,
-  ].filter(Boolean).length;
-  const completionRate = Math.round((completedFields / 5) * 100);
   const desiredRoles = form.desiredRoles;
   const skills = form.skills;
   const certificates = form.certificates;
@@ -505,29 +621,6 @@ function ProfileSpecPage() {
         <h1>내 스펙 관리</h1>
         <p>추천에 사용할 기본 스펙을 직접 입력하고 저장하세요.</p>
       </div>
-
-      <section className="stat-grid">
-        <article className="stat-card stat-card-blue">
-          <div className="stat-icon"><LayoutDashboard size={20} /></div>
-          <span>프로필 완성도</span>
-          <strong>{completionRate}%</strong>
-        </article>
-        <article className="stat-card stat-card-purple">
-          <div className="stat-icon"><Sparkles size={20} /></div>
-          <span>기술 키워드</span>
-          <strong>{skills.length}</strong>
-        </article>
-        <article className="stat-card stat-card-green">
-          <div className="stat-icon"><FileText size={20} /></div>
-          <span>자격/어학</span>
-          <strong>{certificates.length + languages.length}</strong>
-        </article>
-        <article className="stat-card stat-card-orange">
-          <div className="stat-icon"><BriefcaseBusiness size={20} /></div>
-          <span>개발 경험</span>
-          <strong>{projects.length}</strong>
-        </article>
-      </section>
 
       <section className="profile-editor-layout">
         <form className="profile-form-card" onSubmit={handleSubmit}>
@@ -1204,6 +1297,14 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <AccountPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
