@@ -741,6 +741,55 @@ h4 {
   gap: 14px;
 }
 
+.loading-panel,
+.empty-state {
+  display: flex;
+  min-height: 132px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--muted);
+}
+
+.loading-panel p {
+  margin: 0;
+  font-weight: 750;
+}
+
+.loading-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--blue);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+.empty-state {
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.empty-state strong {
+  color: var(--text);
+  font-size: 18px;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
 .job-card {
   padding: 20px;
   transition: transform 160ms ease, box-shadow 160ms ease;

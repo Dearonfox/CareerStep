@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { listJobs } from '../api/jobs';
-import { jobs as initialJobs } from '../data/mockData';
 import type { Job, PageKey } from '../types';
 
 type CareerState = {
@@ -19,7 +18,7 @@ type CareerState = {
 
 export const useCareerStore = create<CareerState>((set) => ({
   currentPage: 'home',
-  jobs: initialJobs,
+  jobs: [],
   isLoadingJobs: false,
   jobsError: '',
   query: '',
@@ -32,8 +31,9 @@ export const useCareerStore = create<CareerState>((set) => ({
       set({ jobs, isLoadingJobs: false });
     } catch {
       set({
+        jobs: [],
         isLoadingJobs: false,
-        jobsError: '채용공고를 불러오지 못해 예시 데이터를 표시하고 있습니다.',
+        jobsError: '채용공고를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',
       });
     }
   },

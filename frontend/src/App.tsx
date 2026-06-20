@@ -797,16 +797,26 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
         onQueryChange={setQuery}
         onSkillChange={setSelectedSkill}
       />
-      {isLoadingJobs ? <p className="profile-success">채용공고를 불러오는 중입니다.</p> : null}
-      {jobsError ? <p className="auth-error">{jobsError}</p> : null}
-      <div className="job-list">
-        {filteredJobs.map((job) => (
-          <JobCard key={job.id} job={job} onToggleSaved={toggleSaved} />
-        ))}
-        {!isLoadingJobs && filteredJobs.length === 0 ? (
-          <p className="profile-success">조건에 맞는 채용공고가 없습니다.</p>
-        ) : null}
-      </div>
+      {isLoadingJobs ? (
+        <div className="loading-panel">
+          <span className="loading-dot" />
+          <p>MongoDB에서 채용공고를 불러오는 중입니다.</p>
+        </div>
+      ) : null}
+      {!isLoadingJobs && jobsError ? <p className="auth-error">{jobsError}</p> : null}
+      {!isLoadingJobs && !jobsError ? (
+        <div className="job-list">
+          {filteredJobs.map((job) => (
+            <JobCard key={job.id} job={job} onToggleSaved={toggleSaved} />
+          ))}
+          {filteredJobs.length === 0 ? (
+            <div className="empty-state">
+              <strong>조건에 맞는 채용공고가 없습니다.</strong>
+              <span>검색어나 기술스택 필터를 조정해보세요.</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
