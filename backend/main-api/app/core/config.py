@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 14
     ai_service_url: str = "http://ai-backend:8001/api/v1"
     internal_service_key: str = "change-me-internal-service-key"
+    mongodb_uri: str = ""
     cors_origins: list[str] = DEFAULT_CORS_ORIGINS
 
     @field_validator("cors_origins", mode="before")
