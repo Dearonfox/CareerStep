@@ -25,6 +25,7 @@ import {
   updateAdminUserRole,
   type AdminUser,
 } from './api/admin';
+import { listActivities, type ActivityItem } from './api/activities';
 import { changePassword, logout as requestLogout } from './api/auth';
 import { getMyProfile, saveMyProfile } from './api/profile';
 import { AdminSidebar, type AdminSection } from './components/AdminSidebar';
@@ -106,36 +107,6 @@ function stripProfilePrefix(value: string, prefix: string) {
 function pickPrefixedValues(values: string[], prefix: string) {
   return values.filter((value) => value.startsWith(prefix)).map((value) => stripProfilePrefix(value, prefix));
 }
-
-const activities = [
-  {
-    id: 1,
-    title: '오픈소스 컨트리뷰션 챌린지',
-    organizer: '한국소프트웨어산업협회',
-    period: '2026.07.01 - 2026.08.30',
-    category: '개발',
-    tags: ['GitHub', 'React', '협업'],
-    status: '추천 로직 연동 예정',
-  },
-  {
-    id: 2,
-    title: 'AI 서비스 기획 해커톤',
-    organizer: 'Seoul Tech Hub',
-    period: '2026.07.12 - 2026.07.14',
-    category: '해커톤',
-    tags: ['AI', '서비스기획', '프로토타입'],
-    status: '추천 로직 연동 예정',
-  },
-  {
-    id: 3,
-    title: '프론트엔드 포트폴리오 스터디',
-    organizer: 'CareerStep Community',
-    period: '상시 모집',
-    category: '스터디',
-    tags: ['TypeScript', '포트폴리오', '면접'],
-    status: '추천 로직 연동 예정',
-  },
-];
 
 function Header() {
   const navigate = useNavigate();
@@ -938,50 +909,90 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
 }
 
 function ActivitiesPage() {
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  async function loadActivities() {
+    setIsLoading(true);
+    setError('');
+    try {
+      setActivities(await listActivities());
+    } catch {
+      setError('대외활동을 불러오지 못했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadActivities();
+  }, []);
+
   return (
     <main className="page-shell">
       <div className="page-title">
         <p className="eyebrow">External Activities</p>
         <h1>대외활동</h1>
-        <p>추천 로직이 완성되면 사용자 프로필과 관심 직무에 맞춰 대외활동을 자동 추천합니다.</p>
+        <p>DB에 등록된 대외활동을 확인하고, 이후 사용자 스펙 기반 추천에 활용합니다.</p>
       </div>
 
       <section className="activity-toolbar">
         <div>
-          <strong>추천 엔진 연동 대기</strong>
-          <span>현재는 화면 구조와 카드 UI를 먼저 반영한 상태입니다.</span>
+          <strong>{isLoading ? '대외활동을 불러오는 중입니다.' : `전체 ${activities.length}개`}</strong>
+          <span>해커톤, 공모전, 교육, 커뮤니티 활동 데이터를 카드로 보여줍니다.</span>
         </div>
-        <Button variant="secondary" icon={Activity} disabled>
-          추천 준비중
+        <Button variant="secondary" icon={Activity} onClick={loadActivities} disabled={isLoading}>
+          새로고침
         </Button>
       </section>
 
-      <section className="activity-grid">
-        {activities.map((activity) => (
-          <article className="activity-card" key={activity.id}>
-            <div className="activity-card-header">
-              <span className="status-pill">{activity.category}</span>
-              <small>{activity.status}</small>
+      {error ? <p className="auth-error">{error}</p> : null}
+      {isLoading ? (
+        <div className="empty-state">
+          <strong>대외활동을 불러오는 중입니다.</strong>
+          <span>잠시만 기다려주세요.</span>
+        </div>
+      ) : (
+        <section className="activity-grid">
+          {activities.map((activity) => (
+            <article className="activity-card" key={activity.id}>
+              <div className="activity-card-header">
+                <span className="status-pill">{activity.category}</span>
+                <small>{activity.status || '모집 정보'}</small>
+              </div>
+              <h3>{activity.title}</h3>
+              <div className="meta-row">
+                <span>
+                  <ExternalLink size={15} />
+                  {activity.organizer}
+                </span>
+                <span>
+                  <CalendarDays size={15} />
+                  {activity.period}
+                </span>
+              </div>
+              {activity.description ? <p className="reason">{activity.description}</p> : null}
+              <div className="tag-row">
+                {(activity.tags.length ? activity.tags : ['대외활동']).map((tag) => (
+                  <SkillTag key={tag} label={tag} tone="ai" />
+                ))}
+              </div>
+              {activity.url ? (
+                <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(activity.url, '_blank', 'noopener,noreferrer')}>
+                  자세히 보기
+                </Button>
+              ) : null}
+            </article>
+          ))}
+          {activities.length === 0 ? (
+            <div className="empty-state">
+              <strong>표시할 대외활동이 없습니다.</strong>
+              <span>DB 컬렉션 이름이나 저장된 데이터를 확인해주세요.</span>
             </div>
-            <h3>{activity.title}</h3>
-            <div className="meta-row">
-              <span>
-                <ExternalLink size={15} />
-                {activity.organizer}
-              </span>
-              <span>
-                <CalendarDays size={15} />
-                {activity.period}
-              </span>
-            </div>
-            <div className="tag-row">
-              {activity.tags.map((tag) => (
-                <SkillTag key={tag} label={tag} tone="ai" />
-              ))}
-            </div>
-          </article>
-        ))}
-      </section>
+          ) : null}
+        </section>
+      )}
     </main>
   );
 }

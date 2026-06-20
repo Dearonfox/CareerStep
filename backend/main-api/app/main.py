@@ -5,7 +5,7 @@ from sqlalchemy import inspect, text
 from app.core.config import settings
 from app.core.database import Base, engine
 from app import models
-from app.routers import admin, ai_proxy, auth, jobs, preferences, profiles
+from app.routers import activities, admin, ai_proxy, auth, jobs, preferences, profiles
 
 app = FastAPI(title="CareerStep Main Backend", version="0.1.0")
 
@@ -21,6 +21,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(profiles.router, prefix="/api/v1/profiles", tags=["profiles"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
+app.include_router(activities.router, prefix="/api/v1/activities", tags=["activities"])
 app.include_router(ai_proxy.router, prefix="/api/v1/ai", tags=["ai-proxy"])
 app.include_router(preferences.router, prefix="/api/v1/preferences", tags=["preferences"])
 

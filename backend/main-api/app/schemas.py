@@ -136,6 +136,18 @@ class JobRead(JobCreate):
     id: int
 
 
+class ActivityRead(BaseModel):
+    id: int
+    title: str
+    organizer: str
+    period: str
+    category: str
+    tags: list[str] = []
+    status: str = ""
+    url: str = ""
+    description: str = ""
+
+
 class AIRecommendRequest(BaseModel):
     profile: ProfileUpsert
     jobs: list[JobRead]
