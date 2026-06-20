@@ -59,7 +59,6 @@ class Profile(Base):
     portfolio_solo_count: Mapped[int] = mapped_column(Integer, default=0)
     portfolio_team_count: Mapped[int] = mapped_column(Integer, default=0)
     portfolio_deployed_count: Mapped[int] = mapped_column(Integer, default=0)
-    portfolio_total_months: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped[User] = relationship(back_populates="profile")
 
