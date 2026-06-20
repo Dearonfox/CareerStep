@@ -68,7 +68,7 @@ def list_mongo_jobs(limit: int = 60) -> list[JobRead]:
         collection = client["careerstep"]["job_raw"]
         query = {
             "$or": [
-                {"status": {"$in": ["summarized", "detailed", "pending"]}},
+                {"status": {"$in": ["summarized", "detailed", "routed", "pending"]}},
                 {"status": {"$exists": False}},
             ]
         }
