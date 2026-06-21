@@ -18,7 +18,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import {
   deleteAdminUser,
   listAdminUsers,
@@ -47,7 +47,6 @@ const navItems: Array<{ to: string; label: string; requiredRole?: UserRole }> = 
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '내 스펙' },
   { to: '/jobs', label: '채용공고' },
-  { to: '/recommendations', label: '맞춤추천' },
   { to: '/activities', label: '대외활동' },
   { to: '/admin', label: '관리자', requiredRole: 'ADMIN' },
 ];
@@ -842,6 +841,79 @@ function ProfileSpecPage() {
   );
 }
 
+function RecommendationResultsSection() {
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const {
+    result,
+    status,
+    isLoading,
+    message,
+    error,
+    loadRecommendations,
+  } = useRecommendStore();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    let timeoutId: number | undefined;
+    let isMounted = true;
+    const startedAt = Date.now();
+
+    async function pollRecommendations() {
+      const nextStatus = await loadRecommendations();
+      if (!isMounted) {
+        return;
+      }
+      if (nextStatus === 'pending' && Date.now() - startedAt < 60_000) {
+        timeoutId = window.setTimeout(pollRecommendations, 3000);
+      }
+    }
+
+    void pollRecommendations();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isAuthenticated, loadRecommendations]);
+
+  return (
+    <section className="recommendation-section">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">AI Recommendation</p>
+          <h2>AI 맞춤추천</h2>
+          <p>프로필을 저장하면 유저 스펙 기반 추천 공고와 부족 역량, 로드맵을 함께 보여줍니다.</p>
+        </div>
+      </div>
+
+      {!isAuthenticated ? (
+        <div className="empty-state">
+          <strong>로그인 후 맞춤추천을 확인할 수 있습니다.</strong>
+          <span>프로필을 입력하면 추천 결과가 자동으로 생성됩니다.</span>
+        </div>
+      ) : (
+        <>
+          {isLoading && status === 'idle' ? (
+            <div className="loading-panel">
+              <span className="loading-dot" />
+              <p>추천 결과를 불러오는 중입니다.</p>
+            </div>
+          ) : null}
+          <div className="recommendation-layout">
+            <JobsPage compact jobsOverride={result?.jobs ?? []} />
+            <AIAnalysisPanel result={result} status={status} message={message} error={error} />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function JobsPage({ compact = false, jobsOverride }: { compact?: boolean; jobsOverride?: Job[] }) {
   const {
     jobs,
@@ -880,6 +952,15 @@ function JobsPage({ compact = false, jobsOverride }: { compact?: boolean; jobsOv
         <div className="page-title">
           <p className="eyebrow">Smart Job Cards</p>
           <h1>AI 적합도 기반 채용공고</h1>
+        </div>
+      ) : null}
+      {!compact ? <RecommendationResultsSection /> : null}
+      {!compact ? (
+        <div className="section-heading jobs-section-heading">
+          <div>
+            <p className="eyebrow">All Jobs</p>
+            <h2>전체 채용공고</h2>
+          </div>
         </div>
       ) : null}
       <SearchFilterBar
@@ -1481,11 +1562,7 @@ export default function App() {
         <Route path="/jobs" element={<JobsPage />} />
         <Route
           path="/recommendations"
-          element={
-            <ProtectedRoute>
-              <RecommendationsPage />
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/jobs" replace />}
         />
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route

@@ -938,6 +938,15 @@ h4 {
   min-width: 0;
 }
 
+.recommendation-section {
+  margin-bottom: 32px;
+}
+
+.jobs-section-heading {
+  margin-top: 8px;
+  margin-bottom: 14px;
+}
+
 .ai-panel {
   position: sticky;
   top: 90px;
