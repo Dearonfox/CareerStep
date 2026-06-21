@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import os
+import time
 from app.services.demand_aggregator import aggregate_demand
 from app.services.matcher import retrieve_candidates, match_jobs
 from app.core.mongo import mongo
@@ -74,8 +75,25 @@ async def main():
         print("\nOPENAI_API_KEY가 없어 매칭 채점은 생략합니다. (.env의 OPENAI_API_KEY 확인)")
         return
 
-    print("\n2. 일괄 채점 (LLM 1회) + 로드맵 생성 (LLM 1회) = 총 2콜")
-    response = await match_jobs(profile, positions, demand, model=settings.openai_model, include_roadmap=True)
+    print(f"\n2. 일괄 채점 (LLM 1회) + 로드맵 생성 (LLM 1회) = 총 2콜")
+    print("임시 모델 세팅: 채점(gpt-5.4-mini) / 로드맵(gpt-5.5)")
+    
+    # 임시 모델 오버라이딩 (API 에러 대비 폴백 포함)
+    target_score_model = "gpt-5.4-mini"
+    settings.openai_roadmap_model = "gpt-5.5"
+    
+    start_time = time.time()
+    try:
+        response = await match_jobs(profile, positions, demand, model=target_score_model, include_roadmap=True)
+    except Exception as e:
+        print(f"⚠️ 최신 모델명 접근 불가 에러: {e}")
+        print("💡 현재 연동된 API Key가 구버전이거나 가상 환경이므로, gpt-4o-mini와 gpt-4o로 우회하여 성능을 측정합니다.")
+        target_score_model = "gpt-4o-mini"
+        settings.openai_roadmap_model = "gpt-4o"
+        response = await match_jobs(profile, positions, demand, model=target_score_model, include_roadmap=True)
+        
+    elapsed = time.time() - start_time
+    print(f"✅ 매칭 및 로드맵 생성 완료 (소요 시간: {elapsed:.2f}초)")
     
     report_lines = []
     report_lines.append("# AI 추천 리포트\n")

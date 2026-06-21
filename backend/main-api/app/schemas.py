@@ -132,8 +132,14 @@ class JobCreate(BaseModel):
     description: str
 
 
+class MatchBadge(BaseModel):
+    score: int = Field(ge=0, le=100)
+    matched_skills: list[str] = []
+
+
 class JobRead(JobCreate):
     id: int
+    match_badge: MatchBadge | None = None
 
 
 class ActivityRead(BaseModel):

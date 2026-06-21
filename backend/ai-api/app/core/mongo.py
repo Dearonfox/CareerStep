@@ -21,4 +21,8 @@ class MongoManager:
     def job_raw(self):
         return self.db["job_raw"]
 
+    @property
+    def recommendation_cache(self):
+        return self.db["recommendation_cache"]
+
 mongo = MongoManager()  # 싱글톤

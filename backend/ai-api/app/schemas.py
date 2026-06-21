@@ -8,6 +8,11 @@ class ProfileInput(BaseModel):
     projects: list[str] = []
 
 
+class MatchAsyncRequest(BaseModel):
+    user_id: int
+    profile: ProfileInput
+
+
 class CandidateJob(BaseModel):
     job_id: str
     position_title: str

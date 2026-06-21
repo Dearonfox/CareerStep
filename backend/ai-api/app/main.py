@@ -11,8 +11,10 @@ from app.routers import essay, portfolio, recommendations, resume, summarize, tr
 async def lifespan(app: FastAPI):
     # 앱 시작 시 비동기 SQLite DB 초기화
     await init_log_db()
+    print("Connecting to MongoDB...", settings.mongodb_uri)
     if settings.mongodb_uri:
         await mongo.connect(settings.mongodb_uri)
+        print("Connected to MongoDB, db is:", mongo.db)
     yield
     await mongo.close()
 
