@@ -1,13 +1,16 @@
 import { create } from 'zustand';
-import { jobs as initialJobs } from '../data/mockData';
+import { listJobs } from '../api/jobs';
 import type { Job, PageKey } from '../types';
 
 type CareerState = {
   currentPage: PageKey;
   jobs: Job[];
+  isLoadingJobs: boolean;
+  jobsError: string;
   query: string;
   selectedSkill: string;
   setPage: (page: PageKey) => void;
+  loadJobs: () => Promise<void>;
   setQuery: (query: string) => void;
   setSelectedSkill: (skill: string) => void;
   toggleSaved: (jobId: number) => void;
@@ -15,10 +18,25 @@ type CareerState = {
 
 export const useCareerStore = create<CareerState>((set) => ({
   currentPage: 'home',
-  jobs: initialJobs,
+  jobs: [],
+  isLoadingJobs: false,
+  jobsError: '',
   query: '',
   selectedSkill: '전체',
   setPage: (page) => set({ currentPage: page }),
+  loadJobs: async () => {
+    set({ isLoadingJobs: true, jobsError: '' });
+    try {
+      const jobs = await listJobs();
+      set({ jobs, isLoadingJobs: false });
+    } catch {
+      set({
+        jobs: [],
+        isLoadingJobs: false,
+        jobsError: '채용공고를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',
+      });
+    }
+  },
   setQuery: (query) => set({ query }),
   setSelectedSkill: (skill) => set({ selectedSkill: skill }),
   toggleSaved: (jobId) =>

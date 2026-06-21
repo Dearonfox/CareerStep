@@ -20,3 +20,15 @@ backend/ai-api/summarized_samples/
 *.sqlite3
 .coverage
 htmlcov/
+
+# Scratch & temp files
+scratch_*.py
+temp_*
+*.tmp
+
+# Generated artifacts (재생성 가능 — 커밋하지 않음)
+backend/ai-api/demand_profiles.json
+backend/ai-api/demand_profiles.md
+backend/ai-api/gap_report.md
+backend/ai-api/routing_test_results.md
+backend/ai-api/match_report.md

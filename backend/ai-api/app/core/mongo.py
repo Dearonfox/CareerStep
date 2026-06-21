@@ -25,4 +25,8 @@ class MongoManager:
     def activities(self):
         return self.db["activities"]
 
+    @property
+    def recommendation_cache(self):
+        return self.db["recommendation_cache"]
+
 mongo = MongoManager()  # 싱글톤

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from app.core.security import verify_internal_key
 from app.schemas_summarize import SummarizeBatchResult, SummarizeRunRequest, SummarizeStatusResponse
 from app.services.summarizer import JobSummarizer
+from app.services.router import process_routing_for_job
 from app.core.mongo import mongo
 
 router = APIRouter(dependencies=[Depends(verify_internal_key)])
@@ -42,4 +43,51 @@ async def get_status():
         summarized=summarized,
         failed=failed,
         not_relevant=not_relevant
+    )
+
+@router.post("/route", response_model=SummarizeBatchResult)
+async def run_routing(request: SummarizeRunRequest):
+    """
+    status가 'summarized'인 공고들을 대상으로 라우팅(scoring)을 수행합니다.
+    (LLM 호출 없이 로컬 키워드 매칭 수행, 멱등성 보장)
+    """
+    batch_size = request.limit or 100
+    
+    if request.dry_run:
+        cursor = mongo.job_raw.find({"status": "summarized"}).limit(batch_size)
+        jobs = await cursor.to_list(length=batch_size)
+        return SummarizeBatchResult(total_processed=len(jobs))
+        
+    cursor = mongo.job_raw.find({"status": "summarized"}).limit(batch_size)
+    jobs = await cursor.to_list(length=batch_size)
+    
+    if not jobs:
+        return SummarizeBatchResult(total_processed=0)
+        
+    success_count = 0
+    failed_count = 0
+    errors = []
+    
+    for job in jobs:
+        try:
+            routed_job = process_routing_for_job(job)
+            
+            # MongoDB 업데이트
+            await mongo.job_raw.update_one(
+                {"_id": job["_id"]},
+                {"$set": {
+                    "summary": routed_job["summary"],
+                    "status": "routed"
+                }}
+            )
+            success_count += 1
+        except Exception as e:
+            failed_count += 1
+            errors.append({"error": str(e), "job_id": job.get("_id")})
+            
+    return SummarizeBatchResult(
+        total_processed=len(jobs),
+        success_count=success_count,
+        failed_count=failed_count,
+        errors=errors
     )

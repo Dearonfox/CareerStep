@@ -14,5 +14,6 @@ async def draft_essay(payload: EssayDraftRequest) -> EssayDraftResponse:
         system_prompt=ESSAY_DRAFT_SYSTEM_PROMPT,
         payload=payload.model_dump(),
         endpoint="/essay/draft",
+        response_format=EssayDraftResponse
     )
     return EssayDraftResponse.model_validate(result)

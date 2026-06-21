@@ -8,7 +8,7 @@ type ProfileState = {
 
 export const useProfileStore = create<ProfileState>((set) => ({
   profile: {
-    desiredRole: '프론트엔드 개발자',
+    desiredRole: '프론트엔드개발자',
     skills: ['React', 'TypeScript', 'Zustand'],
     certificates: ['정보처리기사'],
     projects: ['AI 채용 추천 대시보드'],

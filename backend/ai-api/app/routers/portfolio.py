@@ -15,6 +15,7 @@ async def parse_portfolio(payload: PortfolioParseRequest) -> PortfolioParseRespo
         system_prompt=PORTFOLIO_PARSE_SYSTEM_PROMPT,
         payload=payload.model_dump(),
         endpoint="/portfolio/parse",
+        response_format=PortfolioParseResponse,
     )
     response = PortfolioParseResponse.model_validate(result)
     await write_ai_log("/portfolio/parse", payload.model_dump(), response.model_dump())

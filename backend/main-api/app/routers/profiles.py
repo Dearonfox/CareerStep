@@ -6,11 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import logging
 from app.core.database import get_db
 from app.deps import get_current_user
 from app.models import Profile, User
 from app.schemas import PortfolioTextRequest, ProfileRead, ProfileUpsert, TranscriptTextRequest
 from app.services.ai_client import post_to_ai_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -24,7 +27,7 @@ def get_my_profile(
 
 
 @router.put("/me", response_model=ProfileRead)
-def upsert_my_profile(
+async def upsert_my_profile(
     payload: ProfileUpsert,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -44,6 +47,8 @@ def upsert_my_profile(
         db.add(profile)
     db.commit()
     db.refresh(profile)
+
+    await _trigger_async_recommendation(current_user.id, profile)
     return profile
 
 
@@ -96,7 +101,7 @@ async def upload_resume(
         "projects_detail": json.dumps(projects_detail, ensure_ascii=False),
     }
 
-    return _upsert_profile(current_user.id, values, db)
+    return await _upsert_profile(current_user.id, values, db)
 
 
 @router.post("/me/transcript", response_model=ProfileRead)
@@ -119,7 +124,7 @@ async def upload_transcript(
         "completed_semesters": parsed.get("completed_semesters", ""),
     }
 
-    return _upsert_profile(current_user.id, values, db)
+    return await _upsert_profile(current_user.id, values, db)
 
 
 @router.post("/me/portfolio", response_model=ProfileRead)
@@ -142,10 +147,10 @@ async def upload_portfolio(
         "portfolio_total_months": parsed.get("total_duration_months", 0),
     }
 
-    return _upsert_profile(current_user.id, values, db)
+    return await _upsert_profile(current_user.id, values, db)
 
 
-def _upsert_profile(user_id: int, values: dict, db: Session) -> Profile:
+async def _upsert_profile(user_id: int, values: dict, db: Session) -> Profile:
     profile = db.scalar(select(Profile).where(Profile.user_id == user_id))
     if profile:
         for key, value in values.items():
@@ -155,7 +160,24 @@ def _upsert_profile(user_id: int, values: dict, db: Session) -> Profile:
         db.add(profile)
     db.commit()
     db.refresh(profile)
+    await _trigger_async_recommendation(user_id, profile)
     return profile
+
+async def _trigger_async_recommendation(user_id: int, profile: Profile):
+    payload = {
+        "desired_role": profile.desired_role,
+        "skills": json.loads(profile.skills) if profile.skills else [],
+        "certificates": json.loads(profile.certificates) if profile.certificates else [],
+        "projects": json.loads(profile.projects) if profile.projects else []
+    }
+    
+    try:
+        await post_to_ai_service("/recommend/match/async", {
+            "user_id": user_id,
+            "profile": payload
+        })
+    except Exception as e:
+        logger.exception("Failed to trigger async recommendation")
 
 
 def _extract_text_from_pdf(contents: bytes) -> str:

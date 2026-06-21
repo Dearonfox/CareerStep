@@ -15,6 +15,7 @@ async def parse_transcript(payload: TranscriptParseRequest) -> TranscriptParseRe
         system_prompt=TRANSCRIPT_PARSE_SYSTEM_PROMPT,
         payload=payload.model_dump(),
         endpoint="/transcript/parse",
+        response_format=TranscriptParseResponse,
     )
     response = TranscriptParseResponse.model_validate(result)
     await write_ai_log("/transcript/parse", payload.model_dump(), response.model_dump())

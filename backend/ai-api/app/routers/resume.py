@@ -15,6 +15,7 @@ async def parse_resume(payload: ResumeParseRequest) -> ResumeParseResponse:
         system_prompt=RESUME_PARSE_SYSTEM_PROMPT,
         payload=payload.model_dump(),
         endpoint="/resume/parse",
+        response_format=ResumeParseResponse,
     )
     response = ResumeParseResponse.model_validate(result)
     await write_ai_log("/resume/parse", payload.model_dump(), response.model_dump())

@@ -7,7 +7,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
-  LayoutDashboard,
+  LockKeyhole,
   LogIn,
   LogOut,
   RefreshCw,
@@ -15,19 +15,20 @@ import {
   Sparkles,
   Trash2,
   UserPlus,
+  UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import {
-  bootstrapFirstAdmin,
   deleteAdminUser,
   listAdminUsers,
   updateAdminUserRole,
   type AdminUser,
 } from './api/admin';
-import { logout as requestLogout } from './api/auth';
+import { listActivities, type ActivityItem } from './api/activities';
+import { changePassword, logout as requestLogout } from './api/auth';
 import { getMyProfile, saveMyProfile } from './api/profile';
-import { AdminSidebar } from './components/AdminSidebar';
+import { AdminSidebar, type AdminSection } from './components/AdminSidebar';
 import { AIAnalysisPanel } from './components/AIAnalysisPanel';
 import { Button } from './components/Button';
 import { DashboardCard } from './components/DashboardCard';
@@ -36,15 +37,14 @@ import { ProfileProgressCard } from './components/ProfileProgressCard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SearchFilterBar } from './components/SearchFilterBar';
 import { SkillTag } from './components/SkillTag';
-import { StatCard } from './components/StatCard';
-import { adminStats, dashboardSignals, stats } from './data/mockData';
+import { adminStats, dashboardSignals } from './data/mockData';
 import { AuthPage } from './pages/AuthPage';
 import { useCareerStore } from './store/useCareerStore';
 import { useUserStore } from './store/useUserStore';
 import type { UserRole } from './types';
 const navItems: Array<{ to: string; label: string; requiredRole?: UserRole }> = [
   { to: '/', label: '홈' },
-  { to: '/dashboard', label: '마이페이지' },
+  { to: '/dashboard', label: '내 스펙' },
   { to: '/jobs', label: '채용공고' },
   { to: '/activities', label: '대외활동' },
   { to: '/admin', label: '관리자', requiredRole: 'ADMIN' },
@@ -60,7 +60,34 @@ const emptyProfileForm = {
   projects: [] as string[],
 };
 
-const roleOptions = ['프론트엔드 개발자', '백엔드 개발자', '풀스택 개발자', 'AI/데이터', 'DevOps', '기획/PM'];
+const roleOptions = [
+  '백엔드개발자',
+  '프론트엔드개발자',
+  '웹개발자',
+  '앱개발자',
+  '시스템엔지니어',
+  '네트워크엔지니어',
+  'DBA',
+  '데이터엔지니어',
+  '데이터사이언티스트',
+  '보안엔지니어',
+  '소프트웨어개발자',
+  '게임개발자',
+  '하드웨어개발자',
+  'AI/ML엔지니어',
+  '블록체인개발자',
+  '클라우드엔지니어',
+  '웹퍼블리셔',
+  'IT컨설팅',
+  'QA',
+  'AI/ML연구원',
+  '데이터분석가',
+  '데이터라벨러',
+  '프롬프트엔지니어',
+  'AI보안전문가',
+  'MLOps엔지니어',
+  'AI서비스개발자',
+];
 const skillOptions = ['React', 'TypeScript', 'JavaScript', 'Spring Boot', 'Node.js', 'Python', 'MySQL', 'PostgreSQL', 'AWS', 'Docker', 'Git'];
 const projectTypeOptions = ['개인 프로젝트', '팀 프로젝트', '기업·인턴 프로젝트', '공모전·해커톤', '오픈소스 기여'];
 const responsibilityOptions = ['프론트엔드 개발', '백엔드 개발', '풀스택 개발', 'AI 모델·데이터 처리', '기획·프로젝트 관리', 'UI/UX 설계'];
@@ -80,36 +107,6 @@ function stripProfilePrefix(value: string, prefix: string) {
 function pickPrefixedValues(values: string[], prefix: string) {
   return values.filter((value) => value.startsWith(prefix)).map((value) => stripProfilePrefix(value, prefix));
 }
-
-const activities = [
-  {
-    id: 1,
-    title: '오픈소스 컨트리뷰션 챌린지',
-    organizer: '한국소프트웨어산업협회',
-    period: '2026.07.01 - 2026.08.30',
-    category: '개발',
-    tags: ['GitHub', 'React', '협업'],
-    status: '추천 로직 연동 예정',
-  },
-  {
-    id: 2,
-    title: 'AI 서비스 기획 해커톤',
-    organizer: 'Seoul Tech Hub',
-    period: '2026.07.12 - 2026.07.14',
-    category: '해커톤',
-    tags: ['AI', '서비스기획', '프로토타입'],
-    status: '추천 로직 연동 예정',
-  },
-  {
-    id: 3,
-    title: '프론트엔드 포트폴리오 스터디',
-    organizer: 'CareerStep Community',
-    period: '상시 모집',
-    category: '스터디',
-    tags: ['TypeScript', '포트폴리오', '면접'],
-    status: '추천 로직 연동 예정',
-  },
-];
 
 function Header() {
   const navigate = useNavigate();
@@ -145,6 +142,9 @@ function Header() {
         {isAuthenticated ? (
           <>
             <span className="auth-user">{user?.name}</span>
+            <Button variant="secondary" icon={UserRound} onClick={() => navigate('/account')}>
+              내 정보
+            </Button>
             <Button variant="secondary" icon={LogOut} onClick={handleLogout}>
               로그아웃
             </Button>
@@ -161,6 +161,133 @@ function Header() {
         )}
       </div>
     </header>
+  );
+}
+
+function AccountPage() {
+  const user = useUserStore((state) => state.user);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage('');
+    setError('');
+
+    if (newPassword !== confirmPassword) {
+      setError('새 비밀번호가 서로 일치하지 않습니다.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setMessage('비밀번호가 변경되었습니다.');
+    } catch {
+      setError('현재 비밀번호를 확인해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="page-shell account-layout">
+      <section className="page-title">
+        <p className="eyebrow">My Account</p>
+        <h1>내 정보</h1>
+        <p>계정 정보를 확인하고 로그인 비밀번호를 변경할 수 있습니다.</p>
+      </section>
+
+      <section className="account-grid">
+        <article className="auth-card account-card">
+          <h2>계정 정보</h2>
+          <dl className="account-info">
+            <div>
+              <dt>이름</dt>
+              <dd>{user?.name ?? '-'}</dd>
+            </div>
+            <div>
+              <dt>이메일</dt>
+              <dd>{user?.email ?? '-'}</dd>
+            </div>
+            <div>
+              <dt>권한</dt>
+              <dd>{user?.role === 'ADMIN' ? '관리자' : '일반 사용자'}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article className="auth-card account-card">
+          <h2>비밀번호 변경</h2>
+          <form onSubmit={handlePasswordSubmit}>
+            <label className="auth-field">
+              현재 비밀번호
+              <span>
+                <LockKeyhole size={18} />
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  minLength={8}
+                  required
+                  autoComplete="current-password"
+                />
+              </span>
+            </label>
+
+            <label className="auth-field">
+              새 비밀번호
+              <span>
+                <LockKeyhole size={18} />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  minLength={8}
+                  maxLength={72}
+                  required
+                  autoComplete="new-password"
+                  placeholder="8자 이상"
+                />
+              </span>
+            </label>
+
+            <label className="auth-field">
+              새 비밀번호 확인
+              <span>
+                <LockKeyhole size={18} />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  minLength={8}
+                  maxLength={72}
+                  required
+                  autoComplete="new-password"
+                />
+              </span>
+            </label>
+
+            {error ? <p className="auth-error">{error}</p> : null}
+            {message ? <p className="profile-success">{message}</p> : null}
+
+            <Button variant="primary" className="auth-submit" disabled={isSubmitting}>
+              {isSubmitting ? '변경 중...' : '비밀번호 변경'}
+            </Button>
+          </form>
+        </article>
+      </section>
+    </main>
   );
 }
 
@@ -233,12 +360,6 @@ function DashboardPage() {
         <p className="eyebrow">My Career Board</p>
         <h1>나의 취업 현황판</h1>
       </div>
-
-      <section className="stat-grid">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} stat={stat} />
-        ))}
-      </section>
 
       <section className="bento-grid">
         <DashboardCard title="프로필 완성도" className="bento-wide">
@@ -453,14 +574,6 @@ function ProfileSpecPage() {
     }
   }
 
-  const completedFields = [
-    form.desiredRoles.length,
-    form.skills.length,
-    form.certificates.length,
-    form.languages.length,
-    form.projects.length,
-  ].filter(Boolean).length;
-  const completionRate = Math.round((completedFields / 5) * 100);
   const desiredRoles = form.desiredRoles;
   const skills = form.skills;
   const certificates = form.certificates;
@@ -479,29 +592,6 @@ function ProfileSpecPage() {
         <h1>내 스펙 관리</h1>
         <p>추천에 사용할 기본 스펙을 직접 입력하고 저장하세요.</p>
       </div>
-
-      <section className="stat-grid">
-        <article className="stat-card stat-card-blue">
-          <div className="stat-icon"><LayoutDashboard size={20} /></div>
-          <span>프로필 완성도</span>
-          <strong>{completionRate}%</strong>
-        </article>
-        <article className="stat-card stat-card-purple">
-          <div className="stat-icon"><Sparkles size={20} /></div>
-          <span>기술 키워드</span>
-          <strong>{skills.length}</strong>
-        </article>
-        <article className="stat-card stat-card-green">
-          <div className="stat-icon"><FileText size={20} /></div>
-          <span>자격/어학</span>
-          <strong>{certificates.length + languages.length}</strong>
-        </article>
-        <article className="stat-card stat-card-orange">
-          <div className="stat-icon"><BriefcaseBusiness size={20} /></div>
-          <span>개발 경험</span>
-          <strong>{projects.length}</strong>
-        </article>
-      </section>
 
       <section className="profile-editor-layout">
         <form className="profile-form-card" onSubmit={handleSubmit}>
@@ -535,9 +625,6 @@ function ProfileSpecPage() {
                   {role}
                 </button>
               ))}
-              <button type="button" className="choice-chip choice-chip-add" onClick={() => addCustomValue('desiredRoles')}>
-                + 직접 추가
-              </button>
             </div>
           </section>
 
@@ -756,12 +843,19 @@ function ProfileSpecPage() {
 function JobsPage({ compact = false }: { compact?: boolean }) {
   const {
     jobs,
+    isLoadingJobs,
+    jobsError,
+    loadJobs,
     query,
     selectedSkill,
     setQuery,
     setSelectedSkill,
     toggleSaved,
   } = useCareerStore();
+
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredJobs = jobs.filter((job) => {
@@ -790,60 +884,115 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
         onQueryChange={setQuery}
         onSkillChange={setSelectedSkill}
       />
-      <div className="job-list">
-        {filteredJobs.map((job) => (
-          <JobCard key={job.id} job={job} onToggleSaved={toggleSaved} />
-        ))}
-      </div>
+      {isLoadingJobs ? (
+        <div className="loading-panel">
+          <span className="loading-dot" />
+          <p>채용공고를 불러오는 중입니다.</p>
+        </div>
+      ) : null}
+      {!isLoadingJobs && jobsError ? <p className="auth-error">{jobsError}</p> : null}
+      {!isLoadingJobs && !jobsError ? (
+        <div className="job-list">
+          {filteredJobs.map((job) => (
+            <JobCard key={job.id} job={job} onToggleSaved={toggleSaved} />
+          ))}
+          {filteredJobs.length === 0 ? (
+            <div className="empty-state">
+              <strong>조건에 맞는 채용공고가 없습니다.</strong>
+              <span>검색어나 기술스택 필터를 조정해보세요.</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
 
 function ActivitiesPage() {
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  async function loadActivities() {
+    setIsLoading(true);
+    setError('');
+    try {
+      setActivities(await listActivities());
+    } catch {
+      setError('대외활동을 불러오지 못했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadActivities();
+  }, []);
+
   return (
     <main className="page-shell">
       <div className="page-title">
         <p className="eyebrow">External Activities</p>
         <h1>대외활동</h1>
-        <p>추천 로직이 완성되면 사용자 프로필과 관심 직무에 맞춰 대외활동을 자동 추천합니다.</p>
+        <p>DB에 등록된 대외활동을 확인하고, 이후 사용자 스펙 기반 추천에 활용합니다.</p>
       </div>
 
       <section className="activity-toolbar">
         <div>
-          <strong>추천 엔진 연동 대기</strong>
-          <span>현재는 화면 구조와 카드 UI를 먼저 반영한 상태입니다.</span>
+          <strong>{isLoading ? '대외활동을 불러오는 중입니다.' : `전체 ${activities.length}개`}</strong>
+          <span>해커톤, 공모전, 교육, 커뮤니티 활동 데이터를 카드로 보여줍니다.</span>
         </div>
-        <Button variant="secondary" icon={Activity} disabled>
-          추천 준비중
+        <Button variant="secondary" icon={Activity} onClick={loadActivities} disabled={isLoading}>
+          새로고침
         </Button>
       </section>
 
-      <section className="activity-grid">
-        {activities.map((activity) => (
-          <article className="activity-card" key={activity.id}>
-            <div className="activity-card-header">
-              <span className="status-pill">{activity.category}</span>
-              <small>{activity.status}</small>
+      {error ? <p className="auth-error">{error}</p> : null}
+      {isLoading ? (
+        <div className="empty-state">
+          <strong>대외활동을 불러오는 중입니다.</strong>
+          <span>잠시만 기다려주세요.</span>
+        </div>
+      ) : (
+        <section className="activity-grid">
+          {activities.map((activity) => (
+            <article className="activity-card" key={activity.id}>
+              <div className="activity-card-header">
+                <span className="status-pill">{activity.category}</span>
+                <small>{activity.status || '모집 정보'}</small>
+              </div>
+              <h3>{activity.title}</h3>
+              <div className="meta-row">
+                <span>
+                  <ExternalLink size={15} />
+                  {activity.organizer}
+                </span>
+                <span>
+                  <CalendarDays size={15} />
+                  {activity.period}
+                </span>
+              </div>
+              {activity.description ? <p className="reason">{activity.description}</p> : null}
+              <div className="tag-row">
+                {(activity.tags.length ? activity.tags : ['대외활동']).map((tag) => (
+                  <SkillTag key={tag} label={tag} tone="ai" />
+                ))}
+              </div>
+              {activity.url ? (
+                <Button variant="secondary" icon={ExternalLink} onClick={() => window.open(activity.url, '_blank', 'noopener,noreferrer')}>
+                  자세히 보기
+                </Button>
+              ) : null}
+            </article>
+          ))}
+          {activities.length === 0 ? (
+            <div className="empty-state">
+              <strong>표시할 대외활동이 없습니다.</strong>
+              <span>DB 컬렉션 이름이나 저장된 데이터를 확인해주세요.</span>
             </div>
-            <h3>{activity.title}</h3>
-            <div className="meta-row">
-              <span>
-                <ExternalLink size={15} />
-                {activity.organizer}
-              </span>
-              <span>
-                <CalendarDays size={15} />
-                {activity.period}
-              </span>
-            </div>
-            <div className="tag-row">
-              {activity.tags.map((tag) => (
-                <SkillTag key={tag} label={tag} tone="ai" />
-              ))}
-            </div>
-          </article>
-        ))}
-      </section>
+          ) : null}
+        </section>
+      )}
     </main>
   );
 }
@@ -967,11 +1116,109 @@ function AdminPage() {
   );
 }
 
+const adminSectionCopy: Record<AdminSection, { title: string; description: string }> = {
+  dashboard: {
+    title: '운영 대시보드',
+    description: '서비스의 핵심 운영 현황을 한눈에 확인합니다.',
+  },
+  users: {
+    title: '사용자 관리',
+    description: '가입한 사용자를 확인하고 관리자 권한을 관리합니다.',
+  },
+  jobs: {
+    title: '채용공고 관리',
+    description: '수집된 채용공고를 검수하고 노출 상태를 관리하는 영역입니다.',
+  },
+  activities: {
+    title: '대외활동 관리',
+    description: '추천에 사용할 대외활동 데이터를 관리하는 영역입니다.',
+  },
+  skills: {
+    title: '스킬 관리',
+    description: '추천과 유사도 계산에 쓰이는 기술 키워드를 관리하는 영역입니다.',
+  },
+  aiLogs: {
+    title: 'AI 로그',
+    description: 'AI 추천, 분석 요청, 응답 상태를 확인하는 영역입니다.',
+  },
+  reports: {
+    title: '신고/검수',
+    description: '부적절한 데이터나 사용자 신고를 검토하는 영역입니다.',
+  },
+  statistics: {
+    title: '통계',
+    description: '사용자, 공고, 추천 사용량을 지표로 확인하는 영역입니다.',
+  },
+  settings: {
+    title: '설정',
+    description: '서비스 운영 정책과 관리자 설정을 조정하는 영역입니다.',
+  },
+};
+
+function AdminDashboardOverview({ totalUsers, admins, members }: { totalUsers: number; admins: number; members: number }) {
+  return (
+    <>
+      <div className="admin-stat-grid">
+        <article className="admin-stat-card">
+          <span>전체 사용자</span>
+          <strong>{totalUsers}</strong>
+          <small>가입 계정 기준</small>
+        </article>
+        <article className="admin-stat-card">
+          <span>관리자</span>
+          <strong>{admins}</strong>
+          <small>운영 권한 계정</small>
+        </article>
+        <article className="admin-stat-card">
+          <span>일반 사용자</span>
+          <strong>{members}</strong>
+          <small>서비스 이용 계정</small>
+        </article>
+        <article className="admin-stat-card">
+          <span>운영 상태</span>
+          <strong>정상</strong>
+          <small>관리 기능 연결됨</small>
+        </article>
+      </div>
+      <section className="admin-table-card">
+        <div className="section-heading">
+          <div>
+            <h2>관리 메뉴 안내</h2>
+            <p>현재 사용자 관리는 바로 사용할 수 있고, 나머지 메뉴는 기능 확장 예정입니다.</p>
+          </div>
+        </div>
+        <div className="admin-module-grid">
+          {[
+            ['사용자', '계정 목록 조회, 권한 변경, 계정 삭제'],
+            ['채용공고', '공고 검수, 숨김 처리, 추천 노출 관리 예정'],
+            ['대외활동', '대외활동 데이터 검수 및 추천 노출 관리 예정'],
+            ['AI 로그', '추천 요청 및 분석 결과 추적 예정'],
+          ].map(([title, description]) => (
+            <article key={title} className="admin-module-card">
+              <strong>{title}</strong>
+              <span>{description}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function AdminComingSoon({ section }: { section: { title: string; description: string } }) {
+  return (
+    <section className="admin-table-card admin-empty-state">
+      <p className="eyebrow">Coming Soon</p>
+      <h2>{section.title}</h2>
+      <p>{section.description}</p>
+      <span>아직 관리 기능은 준비 중입니다. 지금은 사용자 관리와 운영 대시보드를 사용할 수 있습니다.</span>
+    </section>
+  );
+}
+
 function UserAdminPage() {
   const currentUser = useUserStore((state) => state.user);
-  const accessToken = useUserStore((state) => state.accessToken);
-  const refreshToken = useUserStore((state) => state.refreshToken);
-  const setAuth = useUserStore((state) => state.setAuth);
+  const [activeSection, setActiveSection] = useState<AdminSection>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -985,6 +1232,7 @@ function UserAdminPage() {
       members: users.length - admins,
     };
   }, [users]);
+  const activeCopy = adminSectionCopy[activeSection];
 
   async function loadUsers() {
     if (currentUser?.role !== 'ADMIN') {
@@ -996,7 +1244,7 @@ function UserAdminPage() {
     try {
       setUsers(await listAdminUsers());
     } catch {
-      setError('Failed to load users. Admin permission is required.');
+      setError('사용자 목록을 불러오지 못했습니다. 관리자 권한을 확인해주세요.');
     } finally {
       setIsLoading(false);
     }
@@ -1013,7 +1261,7 @@ function UserAdminPage() {
       const updatedUser = await updateAdminUserRole(userId, role);
       setUsers((items) => items.map((user) => (user.id === userId ? updatedUser : user)));
     } catch {
-      setError('Failed to update the user role.');
+      setError('사용자 권한을 변경하지 못했습니다.');
     } finally {
       setBusyUserId(null);
     }
@@ -1021,7 +1269,7 @@ function UserAdminPage() {
 
   async function handleDeleteUser(userId: number) {
     const target = users.find((user) => user.id === userId);
-    if (!target || !window.confirm(`Delete ${target.email}?`)) {
+    if (!target || !window.confirm(`${target.email} 계정을 삭제할까요?`)) {
       return;
     }
 
@@ -1031,90 +1279,65 @@ function UserAdminPage() {
       await deleteAdminUser(userId);
       setUsers((items) => items.filter((user) => user.id !== userId));
     } catch {
-      setError('Failed to delete the user.');
+      setError('사용자를 삭제하지 못했습니다.');
     } finally {
       setBusyUserId(null);
     }
   }
 
-  async function handleBootstrapAdmin() {
-    if (!currentUser || !accessToken || !refreshToken) {
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    try {
-      const adminUser = await bootstrapFirstAdmin();
-      setAuth(
-        {
-          id: adminUser.id,
-          email: adminUser.email,
-          name: adminUser.name,
-          role: adminUser.role,
-        },
-        accessToken,
-        refreshToken,
-      );
-      setUsers(await listAdminUsers());
-    } catch {
-      setError('Failed to claim admin access. An admin may already exist.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   return (
     <main className="admin-layout">
-      <AdminSidebar />
+      <AdminSidebar activeSection={activeSection} onSectionChange={setActiveSection} />
       <section className="admin-main">
         <div className="page-title">
-          <p className="eyebrow">SaaS Admin</p>
-          <h1>User Management</h1>
+          <p className="eyebrow">CareerStep Admin</p>
+          <h1>{activeCopy.title}</h1>
+          <p>{activeCopy.description}</p>
         </div>
         {currentUser?.role === 'ADMIN' ? (
-          <>
+          activeSection === 'users' ? (
+            <>
             <div className="admin-stat-grid">
               <article className="admin-stat-card">
-                <span>Total users</span>
+                <span>전체 사용자</span>
                 <strong>{userStats.total}</strong>
-                <small>Live data</small>
+                <small>실시간 계정 현황</small>
               </article>
               <article className="admin-stat-card">
-                <span>Admins</span>
+                <span>관리자</span>
                 <strong>{userStats.admins}</strong>
-                <small>Role protected</small>
+                <small>권한 보호 계정</small>
               </article>
               <article className="admin-stat-card">
-                <span>Members</span>
+                <span>일반 사용자</span>
                 <strong>{userStats.members}</strong>
-                <small>Standard accounts</small>
+                <small>서비스 이용 계정</small>
               </article>
               <article className="admin-stat-card">
-                <span>Status</span>
-                <strong>{isLoading ? 'Sync' : 'Ready'}</strong>
-                <small>API connected</small>
+                <span>연동 상태</span>
+                <strong>{isLoading ? '동기화 중' : '정상'}</strong>
+                <small>관리 API 연결됨</small>
               </article>
             </div>
             <section className="admin-table-card">
               <div className="section-heading">
                 <div>
-                  <h2>Users</h2>
-                  <p>Review users, change roles, and remove accounts.</p>
+                  <h2>사용자 목록</h2>
+                  <p>가입한 사용자를 확인하고 관리자 권한을 관리할 수 있습니다.</p>
                 </div>
                 <Button variant="secondary" icon={RefreshCw} onClick={loadUsers} disabled={isLoading}>
-                  Refresh
+                  새로고침
                 </Button>
               </div>
               {error ? <p className="auth-error">{error}</p> : null}
               <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Created</th>
-                    <th>Actions</th>
+                    <th>이름</th>
+                    <th>이메일</th>
+                    <th>권한</th>
+                    <th>가입일</th>
+                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1129,8 +1352,8 @@ function UserAdminPage() {
                           disabled={busyUserId === user.id}
                           onChange={(event) => handleRoleChange(user.id, event.target.value as UserRole)}
                         >
-                          <option value="USER">USER</option>
-                          <option value="ADMIN">ADMIN</option>
+                          <option value="USER">일반 사용자</option>
+                          <option value="ADMIN">관리자</option>
                         </select>
                       </td>
                       <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
@@ -1142,7 +1365,7 @@ function UserAdminPage() {
                             disabled={busyUserId === user.id || user.role === 'ADMIN'}
                             onClick={() => handleRoleChange(user.id, 'ADMIN')}
                           >
-                            Admin
+                            관리자 지정
                           </Button>
                           <Button
                             variant="ghost"
@@ -1150,7 +1373,7 @@ function UserAdminPage() {
                             disabled={busyUserId === user.id || user.id === currentUser.id}
                             onClick={() => handleDeleteUser(user.id)}
                           >
-                            Delete
+                            삭제
                           </Button>
                         </div>
                       </td>
@@ -1158,23 +1381,25 @@ function UserAdminPage() {
                   ))}
                   {!isLoading && users.length === 0 ? (
                     <tr>
-                      <td colSpan={5}>No users found.</td>
+                      <td colSpan={5}>표시할 사용자가 없습니다.</td>
                     </tr>
                   ) : null}
                 </tbody>
               </table>
             </section>
-          </>
+            </>
+          ) : activeSection === 'dashboard' ? (
+            <AdminDashboardOverview totalUsers={userStats.total} admins={userStats.admins} members={userStats.members} />
+          ) : (
+            <AdminComingSoon section={activeCopy} />
+          )
         ) : (
           <section className="admin-table-card">
             <div className="section-heading">
               <div>
-                <h2>Admin permission required</h2>
-                <p>Your account must have the ADMIN role to manage users. If this is the first account, claim the first admin role.</p>
+                <h2>관리자 권한이 필요합니다</h2>
+                <p>사용자 관리는 관리자 계정으로 로그인한 경우에만 접근할 수 있습니다.</p>
               </div>
-              <Button variant="primary" icon={ShieldCheck} onClick={handleBootstrapAdmin} disabled={isLoading}>
-                Claim first admin
-              </Button>
             </div>
             {error ? <p className="auth-error">{error}</p> : null}
           </section>
@@ -1192,6 +1417,14 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <AccountPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={

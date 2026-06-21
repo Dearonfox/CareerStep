@@ -8,23 +8,31 @@ class ProfileInput(BaseModel):
     projects: list[str] = []
 
 
-class JobInput(BaseModel):
-    id: int
-    title: str
+class MatchAsyncRequest(BaseModel):
+    user_id: int
+    profile: ProfileInput
+
+
+class CandidateJob(BaseModel):
+    job_id: str
+    position_title: str
     company: str
-    location: str
-    employment_type: str
-    skills: list[str]
-    description: str
+    experience_level: str | None = None
+    tech_stack: list[str] = []
+    requirements: list[str] = []
+    preferred: list[str] = []
+    main_tasks: list[str] = []
 
 
 class RecommendJobsRequest(BaseModel):
     profile: ProfileInput
-    jobs: list[JobInput] = Field(max_length=20)
+    candidates: list[CandidateJob] = Field(max_length=20)
+    market_demand_top: list[str] = []
 
 
 class RecommendedJob(BaseModel):
-    job_id: int
+    job_id: str
+    position_title: str
     match_score: int = Field(ge=0, le=100)
     reason: str
     matched_skills: list[str]
@@ -33,8 +41,16 @@ class RecommendedJob(BaseModel):
 
 class RoadmapStep(BaseModel):
     order: int
-    title: str
-    description: str
+    title: str          # 예: "AWS 클라우드 기초 다지기"
+    why: str            # 왜 필요한가 — 사용자 걘/목표 직점 수요 근거
+    how: str            # 어떻게 — 구체적 학습 주제 + 실습/미니 프로젝트 제안
+    duration: str       # 예상 소요 기간 (예: "2~3주")
+    outcome: str        # 완료 시 갖추게 될 역량/산출물
+
+
+class RoadmapResponse(BaseModel):
+    roadmap: list[RoadmapStep]
+    summary: str        # 로드맵 전체를 1~2문장으로 요약한 방향성
 
 
 class RecommendJobsResponse(BaseModel):

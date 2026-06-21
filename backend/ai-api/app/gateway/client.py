@@ -7,6 +7,10 @@ from app.core.logging import write_ai_log
 from app.gateway.rate_limiter import RateLimiter
 from app.gateway.usage_tracker import track_usage
 import openai
+from pydantic import BaseModel
+
+class GatewayError(Exception):
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +28,19 @@ class GPTGateway:
         system_prompt: str,
         payload: dict,
         endpoint: str,
+        response_format: type[BaseModel],
         model: str = None,
         estimated_tokens: int = 1500,
+        max_output_tokens: int = None,
     ) -> dict:
         """
         OpenAI Chat Completions API를 JSON 모드로 호출합니다.
         동시성 및 Rate Limit을 제어하고, 일시적인 에러에 대해 재시도하며, 사용량과 비용을 기록합니다.
+        max_output_tokens: 지정하면 settings.max_tokens 대신 이 값을 출력 토큰 한도로 사용.
         """
         model = model or settings.openai_model
         max_retries = settings.openai_max_retries
+        output_tokens = max_output_tokens or settings.max_tokens
         
         last_exception = None
         start_time = time.time()
@@ -42,10 +50,10 @@ class GPTGateway:
             await self.rate_limiter.acquire(estimated_tokens)
             attempt_start = time.time()
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.client.beta.chat.completions.parse(
                     model=model,
-                    response_format={"type": "json_object"},
-                    max_tokens=settings.max_tokens,
+                    response_format=response_format,
+                    max_completion_tokens=output_tokens,
                     temperature=0.2,
                     messages=[
                         {"role": "system", "content": system_prompt},
@@ -56,8 +64,15 @@ class GPTGateway:
                     ],
                 )
                 
-                content = response.choices[0].message.content or "{}"
-                result = json.loads(content)
+                msg = response.choices[0].message
+                finish = response.choices[0].finish_reason
+
+                if msg.refusal:
+                    raise GatewayError(f"model refused: {msg.refusal}")
+                if msg.parsed is None:
+                    raise GatewayError(f"structured parse failed (finish_reason={finish})")
+
+                result = msg.parsed.model_dump(mode="json")
                 
                 # 성공 시 정보 처리
                 latency_ms = int((time.time() - start_time) * 1000)
@@ -67,6 +82,17 @@ class GPTGateway:
                 
                 # 실제 토큰 사용량으로 업데이트
                 await self.rate_limiter.update_tokens(estimated_tokens, prompt_tokens + completion_tokens)
+                
+                # 터미널 토큰 로깅 추가
+                if usage:
+                    cached_tok = 0
+                    if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details:
+                        cached_tok = getattr(usage.prompt_tokens_details, "cached_tokens", 0)
+                    elif hasattr(usage, "input_tokens_details") and usage.input_tokens_details:
+                        cached_tok = getattr(usage.input_tokens_details, "cached_tokens", 0)
+                        
+                    cache_msg = f" (캐시됨: {cached_tok})" if cached_tok > 0 else ""
+                    logger.info(f"[{model}] 📊 토큰 사용량: 입력 {prompt_tokens}{cache_msg} + 출력 {completion_tokens} = 총 {prompt_tokens + completion_tokens} tokens")
                 
                 # 로그 및 사용량 기록 (비동기 처리)
                 await write_ai_log(endpoint, payload, result)
@@ -154,6 +180,7 @@ class GPTGateway:
         text_payload: dict,
         image_urls: list[str],
         endpoint: str,
+        response_format: type[BaseModel],
         model: str = None,
         estimated_tokens: int = 3000,
     ) -> dict:
@@ -183,16 +210,23 @@ class GPTGateway:
             await self.rate_limiter.acquire(estimated_tokens)
             attempt_start = time.time()
             try:
-                response = await self.client.chat.completions.create(
+                response = await self.client.beta.chat.completions.parse(
                     model=model,
-                    response_format={"type": "json_object"},
+                    response_format=response_format,
                     max_tokens=settings.max_tokens,
                     temperature=0.2,
                     messages=messages,
                 )
                 
-                content = response.choices[0].message.content or "{}"
-                result = json.loads(content)
+                msg = response.choices[0].message
+                finish = response.choices[0].finish_reason
+
+                if msg.refusal:
+                    raise GatewayError(f"model refused: {msg.refusal}")
+                if msg.parsed is None:
+                    raise GatewayError(f"structured parse failed (finish_reason={finish})")
+
+                result = msg.parsed.model_dump(mode="json")
                 
                 latency_ms = int((time.time() - start_time) * 1000)
                 usage = response.usage

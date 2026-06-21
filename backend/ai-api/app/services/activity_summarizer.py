@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.gateway import gpt_gateway
 from app.services.prompts import ACTIVITY_SUMMARIZE_TEXT_SYSTEM_PROMPT, ACTIVITY_SUMMARIZE_IMAGE_SYSTEM_PROMPT
 from app.services.image_tiler import prepare_image_inputs
-from app.schemas_summarize import SummarizeBatchResult
+from app.schemas_summarize import ActivitySummaryResult, SummarizeBatchResult
 
 
 def _is_expired(deadline_date_str: str) -> bool:
@@ -100,6 +100,7 @@ class ActivitySummarizer:
             system_prompt=ACTIVITY_SUMMARIZE_TEXT_SYSTEM_PROMPT,
             payload=payload,
             endpoint="/activities/summarize/text",
+            response_format=ActivitySummaryResult,
             model="gpt-4.1-mini",
             estimated_tokens=2000
         )
@@ -121,5 +122,6 @@ class ActivitySummarizer:
             text_payload=text_payload,
             image_urls=prepared_urls,
             endpoint="/activities/summarize/image",
+            response_format=ActivitySummaryResult,
             model=model
         )

@@ -45,6 +45,11 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=72)
+
+
 class ProfileUpsert(BaseModel):
     desired_role: str = Field(default="", max_length=100)
     skills: list[str] = []
@@ -127,8 +132,26 @@ class JobCreate(BaseModel):
     description: str
 
 
+class MatchBadge(BaseModel):
+    score: int = Field(ge=0, le=100)
+    matched_skills: list[str] = []
+
+
 class JobRead(JobCreate):
     id: int
+    match_badge: MatchBadge | None = None
+
+
+class ActivityRead(BaseModel):
+    id: int
+    title: str
+    organizer: str
+    period: str
+    category: str
+    tags: list[str] = []
+    status: str = ""
+    url: str = ""
+    description: str = ""
 
 
 class AIRecommendRequest(BaseModel):
