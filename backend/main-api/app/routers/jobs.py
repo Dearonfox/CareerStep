@@ -39,6 +39,27 @@ def compact_text(value: object, max_length: int = 180) -> str:
     return text_value[:max_length].rstrip() + "..."
 
 
+def choose_primary_position(relevant_positions: list, profile_ctx: dict | None = None) -> dict:
+    positions = [position for position in relevant_positions if isinstance(position, dict)]
+    if not positions:
+        return {}
+    if profile_ctx is None:
+        return positions[0]
+
+    user_skills = {str(skill).strip().lower() for skill in profile_ctx.get("skills", []) if str(skill).strip()}
+    desired_role = str(profile_ctx.get("desired_role", "")).replace(" ", "").lower()
+
+    def position_score(position: dict) -> tuple[int, int]:
+        tech_stack = position.get("tech_stack") if isinstance(position.get("tech_stack"), list) else []
+        tech_skills = {str(skill).strip().lower() for skill in tech_stack if str(skill).strip()}
+        overlap = len(user_skills.intersection(tech_skills))
+        title = str(position.get("position_title", "")).replace(" ", "").lower()
+        role_hit = 1 if desired_role and (desired_role in title or title in desired_role) else 0
+        return overlap, role_hit
+
+    return max(positions, key=position_score)
+
+
 def serialize_job(job: Job, profile_ctx: dict | None = None) -> JobRead:
     skills = json.loads(job.skills)
     badge = None
@@ -62,13 +83,13 @@ def serialize_mongo_job(job: dict, profile_ctx: dict | None = None) -> JobRead:
     meta = job.get("meta") if isinstance(job.get("meta"), dict) else {}
     summary = job.get("summary") if isinstance(job.get("summary"), dict) else {}
     relevant_positions = summary.get("relevant_positions") if isinstance(summary.get("relevant_positions"), list) else []
-    primary_position = relevant_positions[0] if relevant_positions and isinstance(relevant_positions[0], dict) else {}
+    primary_position = choose_primary_position(relevant_positions, profile_ctx)
 
     raw_id = str(job.get("job_id") or job.get("_id") or "")
     job_id = int(raw_id) if raw_id.isdigit() else zlib.crc32(raw_id.encode("utf-8"))
-    skills = job.get("tags") if isinstance(job.get("tags"), list) else []
-    if not skills and isinstance(primary_position.get("tech_stack"), list):
-        skills = primary_position["tech_stack"]
+    skills = primary_position.get("tech_stack") if isinstance(primary_position.get("tech_stack"), list) else []
+    if not skills and isinstance(job.get("tags"), list):
+        skills = job["tags"]
 
     main_tasks = primary_position.get("main_tasks", []) if isinstance(primary_position.get("main_tasks"), list) else []
     requirements = primary_position.get("requirements", []) if isinstance(primary_position.get("requirements"), list) else []
@@ -111,7 +132,11 @@ def list_mongo_jobs(profile_ctx: dict | None = None, limit: int = 60) -> list[Jo
     try:
         client.admin.command("ping")
         collection = client["careerstep"]["job_raw"]
-        cursor = collection.find({}).sort(
+        query = {"status": "routed"}
+        if collection.count_documents(query, limit=1) == 0:
+            query = {}
+
+        cursor = collection.find(query).sort(
             [("scraped_at", DESCENDING), ("inserted_at", DESCENDING), ("_id", DESCENDING)]
         ).limit(limit)
         return [serialize_mongo_job(job, profile_ctx) for job in cursor]
