@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from app.core.logging import init_log_db
 from app.core.mongo import mongo
 from app.core.config import settings
-from app.routers import essay, portfolio, recommendations, resume, summarize, transcript
+from app.routers import activity_summarize, essay, portfolio, recommendations, resume, summarize, transcript
 
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app.include_router(resume.router, prefix="/api/v1/resume", tags=["resume"])
 app.include_router(transcript.router, prefix="/api/v1/transcript", tags=["transcript"])
 app.include_router(portfolio.router, prefix="/api/v1/portfolio", tags=["portfolio"])
 app.include_router(summarize.router, prefix="/api/v1/summarize", tags=["summarize"])
+app.include_router(activity_summarize.router, prefix="/api/v1/activities/summarize", tags=["activity-summarize"])
 
 
 @app.get("/health")

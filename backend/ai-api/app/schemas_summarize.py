@@ -23,6 +23,7 @@ class SummarizeBatchResult(BaseModel):
     success_count: int = 0
     failed_count: int = 0
     skipped_not_relevant: int = 0
+    skipped_expired: int = 0
     estimated_cost_usd: float = 0.0
     errors: list[dict] = []
 
@@ -36,3 +37,17 @@ class SummarizeStatusResponse(BaseModel):
     summarized: int
     failed: int
     not_relevant: int
+
+
+class ActivitySummaryResult(BaseModel):
+    is_relevant: bool = True
+    activity_type: str = "기타"
+    organizer: str = ""
+    eligibility: list[str] = []
+    activity_period: str = ""
+    application_deadline: str = ""
+    application_deadline_date: str = ""
+    application_method: str = ""
+    benefits: list[str] = []
+    location: str = ""
+    tags: list[str] = []

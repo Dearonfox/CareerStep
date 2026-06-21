@@ -21,4 +21,8 @@ class MongoManager:
     def job_raw(self):
         return self.db["job_raw"]
 
+    @property
+    def activities(self):
+        return self.db["activities"]
+
 mongo = MongoManager()  # 싱글톤
