@@ -40,12 +40,14 @@ import { SkillTag } from './components/SkillTag';
 import { adminStats, dashboardSignals } from './data/mockData';
 import { AuthPage } from './pages/AuthPage';
 import { useCareerStore } from './store/useCareerStore';
+import { useRecommendStore } from './store/useRecommendStore';
 import { useUserStore } from './store/useUserStore';
-import type { UserRole } from './types';
+import type { Job, UserRole } from './types';
 const navItems: Array<{ to: string; label: string; requiredRole?: UserRole }> = [
   { to: '/', label: '홈' },
   { to: '/dashboard', label: '내 스펙' },
   { to: '/jobs', label: '채용공고' },
+  { to: '/recommendations', label: '맞춤추천' },
   { to: '/activities', label: '대외활동' },
   { to: '/admin', label: '관리자', requiredRole: 'ADMIN' },
 ];
@@ -840,7 +842,7 @@ function ProfileSpecPage() {
   );
 }
 
-function JobsPage({ compact = false }: { compact?: boolean }) {
+function JobsPage({ compact = false, jobsOverride }: { compact?: boolean; jobsOverride?: Job[] }) {
   const {
     jobs,
     isLoadingJobs,
@@ -854,11 +856,14 @@ function JobsPage({ compact = false }: { compact?: boolean }) {
   } = useCareerStore();
 
   useEffect(() => {
-    void loadJobs();
-  }, [loadJobs]);
+    if (!jobsOverride) {
+      void loadJobs();
+    }
+  }, [jobsOverride, loadJobs]);
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredJobs = jobs.filter((job) => {
+  const sourceJobs = jobsOverride ?? jobs;
+  const filteredJobs = sourceJobs.filter((job) => {
     const matchesQuery =
       !normalizedQuery ||
       [job.title, job.company, job.location, ...job.skills]
@@ -998,15 +1003,55 @@ function ActivitiesPage() {
 }
 
 function RecommendationsPage() {
+  const {
+    result,
+    status,
+    isLoading,
+    message,
+    error,
+    loadRecommendations,
+  } = useRecommendStore();
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+    let isMounted = true;
+    const startedAt = Date.now();
+
+    async function pollRecommendations() {
+      const nextStatus = await loadRecommendations();
+      if (!isMounted) {
+        return;
+      }
+      if (nextStatus === 'pending' && Date.now() - startedAt < 60_000) {
+        timeoutId = window.setTimeout(pollRecommendations, 3000);
+      }
+    }
+
+    void pollRecommendations();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [loadRecommendations]);
+
   return (
     <main className="page-shell">
       <div className="page-title">
         <p className="eyebrow">AI Recommendation</p>
         <h1>추천 공고와 분석 결과</h1>
       </div>
+      {isLoading && status === 'idle' ? (
+        <div className="loading-panel">
+          <span className="loading-dot" />
+          <p>추천 결과를 불러오는 중입니다.</p>
+        </div>
+      ) : null}
       <div className="recommendation-layout">
-        <JobsPage compact />
-        <AIAnalysisPanel />
+        <JobsPage compact jobsOverride={result?.jobs ?? []} />
+        <AIAnalysisPanel result={result} status={status} message={message} error={error} />
       </div>
     </main>
   );
@@ -1434,6 +1479,14 @@ export default function App() {
           }
         />
         <Route path="/jobs" element={<JobsPage />} />
+        <Route
+          path="/recommendations"
+          element={
+            <ProtectedRoute>
+              <RecommendationsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route
           path="/admin"

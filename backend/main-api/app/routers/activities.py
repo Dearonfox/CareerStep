@@ -21,6 +21,8 @@ ACTIVITY_COLLECTION_CANDIDATES = [
     "external_activities",
 ]
 
+NESTED_SUMMARY_KEYS = ("summary", "summarized", "ai_summary", "extracted", "parsed")
+
 
 def compact_text(value: object, max_length: int = 160) -> str:
     text_value = str(value or "")
@@ -33,11 +35,68 @@ def compact_text(value: object, max_length: int = 160) -> str:
     return text_value[:max_length].rstrip() + "..."
 
 
+def stringify_summary_value(value: object) -> str:
+    if isinstance(value, list):
+        return ", ".join(str(item).strip() for item in value if str(item).strip())
+    return str(value).strip()
+
+
+def text_from_structured_summary(value: object) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return stringify_summary_value(value)
+    if not isinstance(value, dict):
+        return str(value or "").strip()
+
+    for key in ("description", "summary", "summary_text", "overview", "content", "body", "details"):
+        nested_value = value.get(key)
+        if nested_value:
+            return text_from_structured_summary(nested_value)
+
+    readable_parts = []
+    field_labels = [
+        ("activity_period", "활동 기간"),
+        ("recruitment_period", "모집 기간"),
+        ("eligibility", "지원 대상"),
+        ("benefits", "혜택"),
+        ("selection_process", "선발 절차"),
+        ("location", "장소"),
+    ]
+    for key, label in field_labels:
+        nested_value = value.get(key)
+        text_value = stringify_summary_value(nested_value) if nested_value else ""
+        if text_value:
+            readable_parts.append(f"{label}: {text_value}")
+
+    return " · ".join(readable_parts)
+
+
+def nested_text(document: dict, key: str) -> str:
+    lookup_keys = [key]
+    if key == "category":
+        lookup_keys.append("activity_type")
+
+    for lookup_key in lookup_keys:
+        value = document.get(lookup_key)
+        if value is not None and text_from_structured_summary(value):
+            return text_from_structured_summary(value)
+
+    for summary_key in NESTED_SUMMARY_KEYS:
+        summary = document.get(summary_key)
+        if isinstance(summary, dict):
+            for lookup_key in lookup_keys:
+                value = summary.get(lookup_key)
+                if value is not None and text_from_structured_summary(value):
+                    return text_from_structured_summary(value)
+    return ""
+
+
 def first_text(document: dict, *keys: str, default: str = "") -> str:
     for key in keys:
-        value = document.get(key)
-        if value is not None and str(value).strip():
-            return str(value).strip()
+        value = nested_text(document, key)
+        if value:
+            return value
     return default
 
 
@@ -56,7 +115,7 @@ def serialize_mongo_activity(activity: dict) -> ActivityRead:
     activity_id = int(raw_id) if raw_id.isdigit() else zlib.crc32(raw_id.encode("utf-8"))
     start_date = first_text(activity, "start_date", "startDate", "recruit_start")
     end_date = first_text(activity, "end_date", "endDate", "deadline", "deadline_raw", "recruit_end")
-    period = first_text(activity, "period", "date_range")
+    period = first_text(activity, "period", "date_range", "activity_period", "recruitment_period")
     if not period:
         period = " - ".join([date for date in [start_date, end_date] if date]) or "일정 미정"
 

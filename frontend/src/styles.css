@@ -902,6 +902,22 @@ h4 {
   margin: 16px 0;
 }
 
+.score-reason {
+  margin: 16px 0;
+}
+
+.score-reason > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.score-reason .reason {
+  margin: 0;
+}
+
 .job-card .reason {
   display: -webkit-box;
   min-height: 3.2em;

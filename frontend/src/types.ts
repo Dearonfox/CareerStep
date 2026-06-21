@@ -23,7 +23,11 @@ export type RecommendationResult = {
   strengths: string[];
   gaps: string[];
   roadmap: RoadmapItem[];
+  policyViolation: boolean;
+  updatedAt?: string;
 };
+
+export type RecommendationStatus = 'idle' | 'no_data' | 'pending' | 'error' | 'done';
 
 export type Job = {
   id: number;
@@ -33,6 +37,7 @@ export type Job = {
   employmentType: string;
   skills: string[];
   matchScore: number;
+  matchedSkills: string[];
   reason: string;
   gaps: string[];
   saved: boolean;

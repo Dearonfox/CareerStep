@@ -9,6 +9,31 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def enrich_score_reasons(result: RecommendJobsResponse) -> None:
+    """
+    Make recommendation reasons explain the visible score, even when the LLM
+    returns a generic reason. This keeps the frontend contract unchanged.
+    """
+    for recommendation in result.recommendations:
+        score_text = f"{recommendation.match_score}점"
+        if score_text in recommendation.reason:
+            continue
+
+        basis_parts = []
+        if recommendation.matched_skills:
+            basis_parts.append(f"일치 스킬({', '.join(recommendation.matched_skills[:3])})")
+        if recommendation.missing_skills:
+            basis_parts.append(f"보완 필요 역량({', '.join(recommendation.missing_skills[:3])})")
+
+        if basis_parts:
+            score_basis = f"{score_text}으로 평가한 핵심 근거는 {'와 '.join(basis_parts)}입니다."
+        else:
+            score_basis = f"{score_text}은 사용자 프로필과 공고 요구사항의 종합 적합도를 기준으로 산정했습니다."
+
+        recommendation.reason = f"{score_basis} {recommendation.reason}".strip()
+
+
 def retrieve_candidates(profile: Dict[str, Any], positions: List[Dict[str, Any]], demand: Dict[str, Any], top_k: int = 15, max_k: int = 20) -> List[Dict[str, Any]]:
     """
     LLM 없이 결정론적으로 후보 공고를 검색하고 점수화하여 상위 K개를 반환한다.
@@ -194,6 +219,8 @@ async def match_jobs(
     )
 
     scoring_result = RecommendJobsResponse.model_validate(response_dict)
+    scoring_result.recommendations.sort(key=lambda item: item.match_score, reverse=True)
+    enrich_score_reasons(scoring_result)
 
     # roadmap 생성 (선택)
     if include_roadmap and scoring_result.recommendations:

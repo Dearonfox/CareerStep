@@ -154,4 +154,9 @@ async def get_my_match(user_id: int):
     if status == "error":
         return {"status": "error", "message": doc.get("message", "추천 생성 중 오류가 발생했습니다.")}
     
-    return {"status": "done", "data": doc.get("data", {})}
+    updated_at = doc.get("updated_at")
+    return {
+        "status": "done",
+        "updated_at": updated_at.isoformat() if updated_at else None,
+        "data": doc.get("data", {}),
+    }

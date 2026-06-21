@@ -129,6 +129,8 @@ async def test_match_jobs_single_call(monkeypatch, mock_positions, mock_demand):
     assert isinstance(response, RecommendJobsResponse)
     assert len(response.recommendations) == 1
     assert response.recommendations[0].job_id == "1"
+    assert "90점" in response.recommendations[0].reason
+    assert "일치 스킬" in response.recommendations[0].reason
 
 @pytest.mark.asyncio
 @pytest.mark.full

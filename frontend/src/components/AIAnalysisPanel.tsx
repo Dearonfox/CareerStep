@@ -1,9 +1,18 @@
 import { Bot, CheckCircle2, Sparkles, Wand2 } from 'lucide-react';
-import { roadmap } from '../data/mockData';
+import type { RecommendationResult, RecommendationStatus } from '../types';
 import { RoadmapStep } from './RoadmapStep';
 import { SkillTag } from './SkillTag';
 
-export function AIAnalysisPanel() {
+type AIAnalysisPanelProps = {
+  result: RecommendationResult | null;
+  status: RecommendationStatus;
+  message?: string;
+  error?: string | null;
+};
+
+export function AIAnalysisPanel({ result, status, message, error }: AIAnalysisPanelProps) {
+  const isWaiting = status === 'idle' || status === 'pending';
+
   return (
     <aside className="ai-panel">
       <div className="ai-panel-header">
@@ -16,47 +25,92 @@ export function AIAnalysisPanel() {
         </div>
       </div>
 
-      <div className="analysis-block">
-        <h3>
-          <CheckCircle2 size={18} />
-          내 강점
-        </h3>
-        <p>React 기반 화면 구현, API 연동, 사용자 플로우를 고려한 컴포넌트 설계가 강점입니다.</p>
-        <div className="tag-row">
-          {['UI 구현', 'TypeScript', 'API 연동'].map((skill) => (
-            <SkillTag key={skill} label={skill} tone="success" />
-          ))}
+      {isWaiting ? (
+        <div className="analysis-block">
+          <h3>
+            <Sparkles size={18} />
+            추천 생성 중
+          </h3>
+          <p>{message || '추천 결과를 생성 중입니다.'}</p>
         </div>
-      </div>
+      ) : null}
 
-      <div className="analysis-block">
-        <h3>
-          <Sparkles size={18} />
-          부족 역량
-        </h3>
-        <div className="tag-row">
-          {['테스트 코드', 'AWS 배포', '접근성'].map((skill) => (
-            <SkillTag key={skill} label={skill} tone="gap" />
-          ))}
+      {status === 'no_data' ? (
+        <div className="analysis-block">
+          <h3>
+            <Sparkles size={18} />
+            프로필 필요
+          </h3>
+          <p>{message || '프로필을 저장하면 추천이 생성됩니다.'}</p>
         </div>
-      </div>
+      ) : null}
 
-      <div className="analysis-block">
-        <h3>
-          <Wand2 size={18} />
-          추천 학습 로드맵
-        </h3>
-        <div className="roadmap-list">
-          {roadmap.map((item) => (
-            <RoadmapStep key={item.step} item={item} />
-          ))}
+      {status === 'error' ? (
+        <div className="analysis-block">
+          <h3>
+            <Sparkles size={18} />
+            추천 오류
+          </h3>
+          <p>{error || message || '추천 생성 중 오류가 발생했습니다.'}</p>
         </div>
-      </div>
+      ) : null}
 
-      <div className="next-action">
-        <strong>다음 액션</strong>
-        <p>이번 주에는 관심 공고 3개를 기준으로 자기소개서 문항을 먼저 정리하세요.</p>
-      </div>
+      {status === 'done' && result ? (
+        <>
+          {result.policyViolation ? (
+            <div className="analysis-block">
+              <h3>
+                <Sparkles size={18} />
+                안내
+              </h3>
+              <p>추천 결과를 표시할 수 없습니다. 프로필 내용을 확인해 주세요.</p>
+            </div>
+          ) : null}
+
+          <div className="analysis-block">
+            <h3>
+              <CheckCircle2 size={18} />
+              강점
+            </h3>
+            <div className="tag-row">
+              {result.strengths.map((strength) => (
+                <SkillTag key={strength} label={strength} tone="success" />
+              ))}
+            </div>
+          </div>
+
+          <div className="analysis-block">
+            <h3>
+              <Sparkles size={18} />
+              핵심 갭
+            </h3>
+            <div className="tag-row">
+              {result.gaps.map((gap) => (
+                <SkillTag key={gap} label={gap} tone="gap" />
+              ))}
+            </div>
+          </div>
+
+          <div className="analysis-block">
+            <h3>
+              <Wand2 size={18} />
+              추천 학습 로드맵
+            </h3>
+            <div className="roadmap-list">
+              {result.roadmap.map((item) => (
+                <RoadmapStep key={item.step} item={item} />
+              ))}
+            </div>
+          </div>
+
+          {result.updatedAt ? (
+            <div className="next-action">
+              <strong>마지막 업데이트</strong>
+              <p>{new Date(result.updatedAt).toLocaleString()}</p>
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </aside>
   );
 }

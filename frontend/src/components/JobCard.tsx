@@ -36,7 +36,19 @@ export function JobCard({ job, onToggleSaved }: JobCardProps) {
         ))}
       </div>
 
-      <p className="reason">{job.reason}</p>
+      <div className="score-reason">
+        <span>{job.matchScore > 0 ? `${job.matchScore}점 추천 근거` : '추천 근거'}</span>
+        <p className="reason">{job.reason}</p>
+      </div>
+
+      {job.matchedSkills.length ? (
+        <div className="gap-row">
+          <span>일치 스킬</span>
+          {job.matchedSkills.map((skill) => (
+            <SkillTag key={skill} label={skill} tone="success" />
+          ))}
+        </div>
+      ) : null}
 
       {job.gaps.length ? (
         <div className="gap-row">

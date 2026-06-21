@@ -132,6 +132,7 @@ def _sort_by_badge(jobs: list[JobRead]) -> list[JobRead]:
 @router.get("", response_model=list[JobRead])
 def list_jobs(
     sort: str | None = None,
+    limit: int = 60,
     current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ) -> list[JobRead]:
@@ -142,11 +143,13 @@ def list_jobs(
     )
     profile_ctx = build_profile_ctx(profile)
 
-    mongo_jobs = list_mongo_jobs(profile_ctx)
+    safe_limit = max(1, min(limit, 200))
+
+    mongo_jobs = list_mongo_jobs(profile_ctx, limit=safe_limit)
     if mongo_jobs:
         return _sort_by_badge(mongo_jobs) if sort == "match" else mongo_jobs
 
-    jobs = db.scalars(select(Job).order_by(Job.created_at.desc())).all()
+    jobs = db.scalars(select(Job).order_by(Job.created_at.desc()).limit(safe_limit)).all()
     result = [serialize_job(job, profile_ctx) for job in jobs]
     return _sort_by_badge(result) if sort == "match" else result
 

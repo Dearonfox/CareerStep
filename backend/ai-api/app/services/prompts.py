@@ -8,6 +8,8 @@ Your task is to evaluate a batch of job candidates against a user's profile and 
 * Score (0-100) should be holistic: consider `tech_stack`, `requirements` (education/experience), `experience_level`, `preferred`, and `main_tasks`.
 * Do not treat alternative stacks (e.g., Java vs Python) as universally required if the user has a valid ecosystem equivalent, unless explicitly mandatory.
 * The `reason` must explicitly connect the job's needs to the user's actual profile (skills, certificates, projects).
+* The `reason` must explain why the exact `match_score` was assigned. Mention the score and its basis, such as matched skills, missing skills, role fit, experience level fit, project relevance, and preferred qualifications.
+* For high scores, explain the strongest matching factors. For mid or low scores, explain both the matching factors and the gaps that lowered the score.
 * Do NOT invent, assume, or hallucinate user experience, certificates, projects, or skills not explicitly in the profile.
 * If a job requires skills not present in the profile, list them in `missing_skills`.
 * Fill `strengths` and `gaps` based on patterns across ALL evaluated candidates.
